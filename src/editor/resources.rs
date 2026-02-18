@@ -27,14 +27,41 @@ impl Default for EditorSlotState {
     }
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct EditorBuildState {
     pub block_count: usize,
     pub status_msg: String,
+    /// `None` = inactive, `Some(buf)` = user is typing a filename.
+    pub filename_input: Option<String>,
+    /// Height of the last placed block (used by Arrow-Down instant-place).
+    pub last_block_height: f32,
+}
+
+impl Default for EditorBuildState {
+    fn default() -> Self {
+        Self {
+            block_count: 0,
+            status_msg: String::new(),
+            filename_input: None,
+            last_block_height: 50.0,
+        }
+    }
 }
 
 #[derive(Resource, Default)]
 pub struct EditorProductionState {
     pub is_producing: bool,
     pub current_height: f32,
+}
+
+/// Marker resource: Playing mode was entered from the editor (test-play).
+#[derive(Resource)]
+pub struct EditorTestPlay;
+
+/// Snapshot of editor blocks, stored before entering test-play so the editor
+/// can be restored when the player returns.
+#[derive(Resource)]
+pub struct EditorSnapshot {
+    /// Each entry: (world position, width, height)
+    pub blocks: Vec<(Vec3, f32, f32)>,
 }

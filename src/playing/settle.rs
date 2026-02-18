@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use crate::blueprint::Blueprint;
 use crate::constants::*;
+use crate::editor::EditorTestPlay;
 use crate::state::GameState;
 use super::components::*;
 use super::resources::*;
@@ -13,6 +14,7 @@ pub fn check_settle(
     blueprint: Res<Blueprint>,
     block_query: Query<(&TowerBlock, &Transform, Option<&Sleeping>, &LinearVelocity)>,
     mut next_state: ResMut<NextState<GameState>>,
+    testplay: Option<Res<EditorTestPlay>>,
 ) {
     if !build_state.waiting_for_settle {
         return;
@@ -48,7 +50,11 @@ pub fn check_settle(
         // Criterion 1: block tilted more than 15° → toppled
         let (_, _, angle_z) = transform.rotation.to_euler(EulerRot::XYZ);
         if angle_z.abs() > 15_f32.to_radians() {
-            next_state.set(GameState::Failed);
+            if testplay.is_some() {
+                next_state.set(GameState::Editor);
+            } else {
+                next_state.set(GameState::Failed);
+            }
             return;
         }
 
@@ -56,22 +62,35 @@ pub fn check_settle(
         let dx = transform.translation.x - target.x;
         let dy = transform.translation.y - target.y;
         if (dx * dx + dy * dy).sqrt() > SLOT_MAX_WIDTH / 2.0 {
-            next_state.set(GameState::Failed);
+            if testplay.is_some() {
+                next_state.set(GameState::Editor);
+            } else {
+                next_state.set(GameState::Failed);
+            }
             return;
         }
     }
 
-    // All blocks passed → scoring
-    next_state.set(GameState::Scoring);
+    // All blocks passed
+    if testplay.is_some() {
+        next_state.set(GameState::Editor);
+    } else {
+        next_state.set(GameState::Scoring);
+    }
 }
 
 pub fn check_failure(
     block_query: Query<&Transform, With<TowerBlock>>,
     mut next_state: ResMut<NextState<GameState>>,
+    testplay: Option<Res<EditorTestPlay>>,
 ) {
     for transform in &block_query {
         if transform.translation.y < FAIL_Y_THRESHOLD {
-            next_state.set(GameState::Failed);
+            if testplay.is_some() {
+                next_state.set(GameState::Editor);
+            } else {
+                next_state.set(GameState::Failed);
+            }
             return;
         }
     }

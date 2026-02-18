@@ -9,7 +9,13 @@ pub fn setup_editor(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut camera_query: Query<&mut Transform, With<Camera2d>>,
+    snapshot_res: Option<Res<EditorSnapshot>>,
 ) {
+    // Clean up any resources left over from a test-play session.
+    commands.remove_resource::<EditorTestPlay>();
+    commands.remove_resource::<crate::blueprint::Blueprint>();
+    commands.remove_resource::<crate::playing::ProducedDimensions>();
+
     if let Ok(mut cam_t) = camera_query.single_mut() {
         cam_t.translation.y = 0.0;
     }
@@ -43,7 +49,7 @@ pub fn setup_editor(
         EditorEntity,
         EditorHudText,
         Text2d::new(
-            "Level Editor  |  Blocks: 0  |  Arrows: move   Space: place   S: save   R: reset",
+            "Level Editor  |  Blocks: 0  |  Arrows: move   Space/\u{2193}: place   S: save   R: reset   P: test   Esc: menu",
         ),
         TextFont {
             font_size: 16.0,
@@ -53,8 +59,27 @@ pub fn setup_editor(
         Transform::from_xyz(0.0, GROUND_Y - 60.0, 1.0),
     ));
 
+    let mut build_state = EditorBuildState::default();
+
+    // Restore blocks from the snapshot (if returning from test-play).
+    if let Some(snapshot) = snapshot_res {
+        for (pos, width, height) in &snapshot.blocks {
+            let mesh = meshes.add(Rectangle::new(*width, *height));
+            let mat = materials.add(ColorMaterial::from_color(EDITOR_BLOCK_COLOR));
+            commands.spawn((
+                EditorEntity,
+                EditorBlock { width: *width, height: *height },
+                Mesh2d(mesh),
+                MeshMaterial2d(mat),
+                Transform::from_translation(*pos),
+            ));
+            build_state.block_count += 1;
+        }
+        commands.remove_resource::<EditorSnapshot>();
+    }
+
     commands.insert_resource(EditorSlotState::default());
-    commands.insert_resource(EditorBuildState::default());
+    commands.insert_resource(build_state);
     commands.insert_resource(EditorProductionState::default());
 }
 

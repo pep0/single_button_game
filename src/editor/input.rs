@@ -10,6 +10,7 @@ pub fn editor_slot_oscillation(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut slot_state: ResMut<EditorSlotState>,
+    build_state: Res<EditorBuildState>,
     mut slot_query: Query<&mut Transform, With<EditorSlotIndicator>>,
     block_query: Query<(&Transform, &EditorBlock), Without<EditorSlotIndicator>>,
     falling_query: Query<(&Transform, &FallingBlock), Without<EditorSlotIndicator>>,
@@ -32,9 +33,14 @@ pub fn editor_slot_oscillation(
         return;
     }
 
+    // Don't move slot while user is typing a filename.
+    if build_state.filename_input.is_some() {
+        return;
+    }
+
     let dt = time.delta_secs();
 
-    // Arrow keys move slot horizontally.
+    // Arrow keys move slot horizontally (left/right only — down is handled separately).
     if keyboard.pressed(KeyCode::ArrowLeft) {
         slot_state.slot_x = (slot_state.slot_x - EDITOR_SLOT_MOVE_SPEED * dt).max(-370.0);
     }
@@ -55,6 +61,7 @@ pub fn editor_slot_oscillation(
 }
 
 /// Handles Space: grow production rect, then release → spawn FallingBlock.
+/// Also handles Arrow-Down: instant-place a block using last_block_height.
 pub fn editor_production_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
@@ -70,6 +77,11 @@ pub fn editor_production_input(
         (Without<EditorProductionRect>, Without<EditorSlotIndicator>),
     >,
 ) {
+    // All production input is blocked while typing a filename.
+    if build_state.filename_input.is_some() {
+        return;
+    }
+
     let slot_x = slot_state.slot_x;
     let slot_y = slot_state.slot_y;
     let width = slot_state.locked_width.unwrap_or(slot_state.current_width);
@@ -115,21 +127,7 @@ pub fn editor_production_input(
             commands.entity(entity).despawn();
         }
 
-        // Landing Y: start at ground surface + half block height.
-        let half_h = produced_height / 2.0;
-        let mut landing_y = GROUND_Y + GROUND_HALF_HEIGHT + half_h;
-
-        // Raise landing_y to rest on the highest overlapping placed block.
-        for (block_t, block) in &editor_blocks {
-            let bx = block_t.translation.x;
-            let by = block_t.translation.y;
-            if (bx - slot_x).abs() < (block.width + produced_width) / 2.0 {
-                let candidate = by + block.height / 2.0 + half_h;
-                if candidate > landing_y {
-                    landing_y = candidate;
-                }
-            }
-        }
+        let landing_y = compute_landing_y(slot_x, produced_width, produced_height, &editor_blocks);
 
         // Spawn falling block starting at slot_y, falling to landing_y.
         let mesh = meshes.add(Rectangle::new(produced_width, produced_height));
@@ -147,10 +145,64 @@ pub fn editor_production_input(
         ));
 
         build_state.block_count += 1;
+        build_state.last_block_height = produced_height;
         build_state.status_msg = String::new();
 
         // Unlock slot so oscillation resumes.
         slot_state.locked_width = None;
         production.current_height = 0.0;
     }
+
+    // ── Arrow-Down: instant-place a block using last known height ──
+    if keyboard.just_pressed(KeyCode::ArrowDown) && !production.is_producing {
+        let instant_width = slot_state.current_width;
+        let instant_height = build_state.last_block_height;
+
+        let landing_y = compute_landing_y(slot_x, instant_width, instant_height, &editor_blocks);
+
+        let mesh = meshes.add(Rectangle::new(instant_width, instant_height));
+        let mat = materials.add(ColorMaterial::from_color(EDITOR_BLOCK_COLOR));
+        commands.spawn((
+            EditorEntity,
+            FallingBlock {
+                target_y: landing_y,
+                width: instant_width,
+                height: instant_height,
+            },
+            Mesh2d(mesh),
+            MeshMaterial2d(mat),
+            Transform::from_xyz(slot_x, slot_y, 0.5),
+        ));
+
+        build_state.block_count += 1;
+        build_state.status_msg = String::new();
+    }
+}
+
+/// Computes the Y coordinate at which a new block of `(produced_width × produced_height)`
+/// dropped at `slot_x` would come to rest, accounting for already-placed blocks.
+fn compute_landing_y(
+    slot_x: f32,
+    produced_width: f32,
+    produced_height: f32,
+    editor_blocks: &Query<
+        (&Transform, &EditorBlock),
+        (Without<EditorProductionRect>, Without<EditorSlotIndicator>),
+    >,
+) -> f32 {
+    let half_h = produced_height / 2.0;
+    let mut landing_y = GROUND_Y + GROUND_HALF_HEIGHT + half_h;
+
+    for (block_t, block) in editor_blocks.iter() {
+        let bx = block_t.translation.x;
+        let by = block_t.translation.y;
+        if (bx - slot_x).abs() < (block.width + produced_width) / 2.0 {
+            let candidate = by + block.height / 2.0 + half_h;
+            if candidate > landing_y {
+                landing_y = candidate;
+            }
+        }
+    }
+
+    landing_y
 }

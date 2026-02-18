@@ -1,8 +1,9 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::blueprint::build_blueprint;
+use crate::blueprint::{build_blueprint, Blueprint};
 use crate::constants::*;
+use crate::editor::EditorTestPlay;
 use crate::state::Score;
 use super::components::*;
 use super::resources::*;
@@ -12,8 +13,19 @@ pub fn setup_playing(
     score: Res<Score>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    testplay: Option<Res<EditorTestPlay>>,
+    existing_blueprint: Option<Res<Blueprint>>,
 ) {
-    let blueprint = build_blueprint(score.round);
+    // In test-play mode the Blueprint was pre-inserted by the editor's P handler; clone it.
+    // In normal play, build a fresh one from the current round.
+    let blueprint = if testplay.is_some() {
+        existing_blueprint
+            .map(|r| r.clone())
+            .unwrap_or_else(|| build_blueprint(score.round))
+    } else {
+        build_blueprint(score.round)
+    };
+
     let num_slots = blueprint.slots.len();
 
     // Spawn ground as static rigid body (sized mesh, no scale — avian scales colliders with transform)
@@ -76,7 +88,7 @@ pub fn setup_playing(
         Transform::from_xyz(0.0, GROUND_Y - 60.0, 1.0),
     ));
 
-    // Init resources
+    // Init resources — insert/replace Blueprint so Scoring/Failed/settle can read it.
     commands.insert_resource(SlotState::default());
     commands.insert_resource(ProductionState::default());
     commands.insert_resource(BuildState::default());

@@ -1,3 +1,6 @@
+use bevy::ecs::message::MessageReader;
+use bevy::input::keyboard::{Key, KeyboardInput};
+use bevy::input::ButtonState;
 use bevy::prelude::*;
 
 use crate::blueprint::{BlockSlot, Blueprint};
@@ -5,9 +8,10 @@ use crate::state::GameState;
 use super::components::*;
 use super::resources::*;
 
-/// Handles S (save), R (reset), and Escape (back to menu).
+/// Handles S (save), R (reset), P (test-play), and Escape (back to menu / cancel input).
 pub fn editor_save_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut key_events: MessageReader<KeyboardInput>,
     mut next_state: ResMut<NextState<GameState>>,
     mut commands: Commands,
     block_query: Query<(Entity, &Transform, &EditorBlock)>,
@@ -17,11 +21,61 @@ pub fn editor_save_input(
     mut slot_state: ResMut<EditorSlotState>,
     mut production: ResMut<EditorProductionState>,
 ) {
-    // ── Escape: back to menu ──
+    // ── Escape: cancel filename input, or go to menu ──
     if keyboard.just_pressed(KeyCode::Escape) {
+        if build_state.filename_input.is_some() {
+            build_state.filename_input = None;
+            // Consume the event so no other system sees it.
+            return;
+        }
         next_state.set(GameState::Menu);
         return;
     }
+
+    // ── While filename input is active: capture keystrokes ──
+    if build_state.filename_input.is_some() {
+        for event in key_events.read() {
+            if event.state != ButtonState::Pressed {
+                continue;
+            }
+            match &event.logical_key {
+                Key::Enter => {
+                    let raw = build_state.filename_input.take().unwrap_or_default();
+                    let filename = if raw.is_empty() {
+                        "custom_level".to_string()
+                    } else {
+                        raw
+                    };
+                    let filename = if filename.ends_with(".json") {
+                        filename
+                    } else {
+                        format!("{filename}.json")
+                    };
+                    save_blocks(&block_query, &filename, &mut build_state);
+                }
+                Key::Backspace => {
+                    if let Some(ref mut buf) = build_state.filename_input {
+                        buf.pop();
+                    }
+                }
+                Key::Character(s) => {
+                    if let Some(ref mut buf) = build_state.filename_input {
+                        for ch in s.chars() {
+                            if ch.is_alphanumeric() || ch == '-' || ch == '_' || ch == '.' {
+                                buf.push(ch);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        // Block all other input while typing.
+        return;
+    }
+
+    // Drain events so they don't accumulate (we're not in filename mode).
+    key_events.clear();
 
     // ── R: clear all blocks ──
     if keyboard.just_pressed(KeyCode::KeyR) {
@@ -42,20 +96,31 @@ pub fn editor_save_input(
         return;
     }
 
-    // ── S: save to custom_level.json ──
+    // ── S: open filename input ──
     if keyboard.just_pressed(KeyCode::KeyS) {
+        build_state.filename_input = Some(String::new());
+        return;
+    }
+
+    // ── P: test-play ──
+    if keyboard.just_pressed(KeyCode::KeyP) {
         let mut placed: Vec<(&Transform, &EditorBlock)> = block_query
             .iter()
             .map(|(_, t, b)| (t, b))
             .collect();
 
-        // Sort bottom-to-top for a natural layer order in the JSON.
+        // Sort bottom-to-top.
         placed.sort_by(|a, b| {
             a.0.translation
                 .y
                 .partial_cmp(&b.0.translation.y)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
+
+        let snapshot_blocks: Vec<(Vec3, f32, f32)> = placed
+            .iter()
+            .map(|(t, b)| (t.translation, b.width, b.height))
+            .collect();
 
         let slots: Vec<BlockSlot> = placed
             .iter()
@@ -72,18 +137,56 @@ pub fn editor_save_input(
             level_number: 7,
         };
 
-        match serde_json::to_string_pretty(&blueprint) {
-            Ok(json) => match std::fs::write("custom_level.json", json.as_bytes()) {
-                Ok(_) => {
-                    build_state.status_msg = "Saved → custom_level.json".to_string();
-                }
-                Err(e) => {
-                    build_state.status_msg = format!("Error writing file: {e}");
-                }
-            },
-            Err(e) => {
-                build_state.status_msg = format!("Serialization error: {e}");
+        commands.insert_resource(EditorSnapshot { blocks: snapshot_blocks });
+        commands.insert_resource(blueprint);
+        commands.insert_resource(EditorTestPlay);
+        next_state.set(GameState::Playing);
+    }
+}
+
+fn save_blocks(
+    block_query: &Query<(Entity, &Transform, &EditorBlock)>,
+    filename: &str,
+    build_state: &mut EditorBuildState,
+) {
+    let mut placed: Vec<(&Transform, &EditorBlock)> = block_query
+        .iter()
+        .map(|(_, t, b)| (t, b))
+        .collect();
+
+    placed.sort_by(|a, b| {
+        a.0.translation
+            .y
+            .partial_cmp(&b.0.translation.y)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let slots: Vec<BlockSlot> = placed
+        .iter()
+        .map(|(t, b)| BlockSlot {
+            width: b.width,
+            height: b.height,
+            x: t.translation.x,
+            y: t.translation.y,
+        })
+        .collect();
+
+    let blueprint = Blueprint {
+        slots,
+        level_number: 7,
+    };
+
+    match serde_json::to_string_pretty(&blueprint) {
+        Ok(json) => match std::fs::write(filename, json.as_bytes()) {
+            Ok(_) => {
+                build_state.status_msg = format!("Saved \u{2192} {filename}");
             }
+            Err(e) => {
+                build_state.status_msg = format!("Error writing file: {e}");
+            }
+        },
+        Err(e) => {
+            build_state.status_msg = format!("Serialization error: {e}");
         }
     }
 }

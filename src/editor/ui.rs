@@ -49,8 +49,14 @@ pub fn editor_update_hud(
     mut hud_query: Query<&mut Text2d, With<EditorHudText>>,
 ) {
     if let Ok(mut text) = hud_query.single_mut() {
+        // Filename input mode overrides everything else.
+        if let Some(ref buf) = build_state.filename_input {
+            text.0 = format!("Save as: {buf}\u{2588}");
+            return;
+        }
+
         let status = if build_state.status_msg.is_empty() {
-            "Arrows: move   Space: place   S: save   R: reset   Esc: menu"
+            "Arrows: move   Space/\u{2193}: place   S: save   R: reset   P: test   Esc: menu"
         } else {
             &build_state.status_msg
         };
