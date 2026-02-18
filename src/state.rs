@@ -7,6 +7,7 @@ pub enum GameState {
     Playing,
     Scoring,
     Failed,
+    Editor,
 }
 
 #[derive(Resource, Default)]

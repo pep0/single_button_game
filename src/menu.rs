@@ -57,6 +57,17 @@ fn setup_menu(
         TextColor(Color::srgba(0.7, 0.7, 0.7, 0.8)),
         Transform::from_xyz(0.0, -80.0, 0.0),
     ));
+
+    commands.spawn((
+        MenuText,
+        Text2d::new("E - Level Editor"),
+        TextFont {
+            font_size: 16.0,
+            ..default()
+        },
+        TextColor(Color::srgba(0.5, 0.7, 0.9, 0.9)),
+        Transform::from_xyz(0.0, -130.0, 0.0),
+    ));
 }
 
 fn menu_input(
@@ -65,5 +76,8 @@ fn menu_input(
 ) {
     if keyboard.just_pressed(KeyCode::Space) {
         next_state.set(GameState::Playing);
+    }
+    if keyboard.just_pressed(KeyCode::KeyE) {
+        next_state.set(GameState::Editor);
     }
 }

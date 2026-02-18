@@ -1,5 +1,6 @@
 mod blueprint;
 mod constants;
+mod editor;
 mod failed;
 mod menu;
 mod playing;
@@ -32,6 +33,7 @@ fn main() {
             playing::PlayingPlugin,
             scoring::ScoringPlugin,
             failed::FailedPlugin,
+            editor::EditorPlugin,
         ))
         .run();
 }

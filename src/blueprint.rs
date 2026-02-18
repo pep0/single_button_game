@@ -1,6 +1,6 @@
 use crate::constants::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BlockSlot {
     pub width: f32,
     pub height: f32,
@@ -8,7 +8,7 @@ pub struct BlockSlot {
     pub y: f32,
 }
 
-#[derive(bevy::prelude::Resource, Clone)]
+#[derive(bevy::prelude::Resource, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Blueprint {
     pub slots: Vec<BlockSlot>,
     pub level_number: usize,

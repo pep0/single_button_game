@@ -30,3 +30,8 @@ pub const MAX_HEIGHT: f32 = 200.0;
 
 // === Physics tuning ===
 pub const GRAVITY_SCALE: f32 = 800.0;
+
+// === Editor Constants ===
+pub const EDITOR_SLOT_MOVE_SPEED: f32 = 200.0;
+pub const EDITOR_FALL_SPEED: f32 = 400.0;
+pub const EDITOR_BLOCK_COLOR: Color = Color::srgb(0.4, 0.6, 0.9);
