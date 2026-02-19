@@ -10,7 +10,6 @@ use super::resources::*;
 
 pub fn check_settle(
     time: Res<Time>,
-    mut commands: Commands,
     mut build_state: ResMut<BuildState>,
     blueprint: Res<Blueprint>,
     mut produced: ResMut<ProducedDimensions>,
@@ -90,9 +89,9 @@ pub fn check_settle(
         block_data.push((i, score, transform.translation, ph));
     }
 
-    // Per-block 30% failure check
+    // Per-block 20% failure check
     for &(_, score, _, _) in &block_data {
-        if score < 0.30 {
+        if score < 0.20 {
             if testplay.is_some() {
                 next_state.set(GameState::Editor);
             } else {
@@ -102,24 +101,72 @@ pub fn check_settle(
         }
     }
 
-    // Store scores and spawn popups
+    // Store scores
     produced.scores = scores;
-
-    for &(_, score, pos, height) in &block_data {
-        let (r, g, b, font_size) = score_visuals(score);
-        commands.spawn((
-            PlayingEntity,
-            ScorePopup { age: 0.0, base_r: r, base_g: g, base_b: b },
-            Text2d::new(format!("{:.0}%", score * 100.0)),
-            TextFont { font_size, ..default() },
-            TextColor(Color::srgba(r, g, b, 1.0)),
-            Transform::from_xyz(pos.x, pos.y + height / 2.0 + 10.0, 2.0),
-        ));
-    }
 
     build_state.waiting_for_settle = false;
     build_state.showing_popups = true;
     // State transition will be fired by animate_score_popups after popup animation completes
+}
+
+pub fn check_per_block_settle(
+    time: Res<Time>,
+    mut commands: Commands,
+    build_state: Res<BuildState>,
+    blueprint: Res<Blueprint>,
+    produced: Res<ProducedDimensions>,
+    mut block_query: Query<(
+        &TowerBlock,
+        &mut BlockSettleTimer,
+        &Transform,
+        Option<&Sleeping>,
+        &LinearVelocity,
+    )>,
+) {
+    if build_state.showing_popups {
+        return;
+    }
+
+    let dt = time.delta_secs();
+    for (tower_block, mut timer, transform, sleeping, vel) in &mut block_query {
+        if timer.popup_shown {
+            continue;
+        }
+        let i = tower_block.0;
+        // Guard: dimensions must already be recorded (pushed on Space-release)
+        if i >= produced.widths.len() {
+            continue;
+        }
+
+        if sleeping.is_some() || vel.0.length() < 2.0 {
+            timer.rest_secs += dt;
+        } else {
+            timer.rest_secs = 0.0;
+        }
+
+        if timer.rest_secs >= 0.4 {
+            let slot = &blueprint.slots[i];
+            let pw = produced.widths[i];
+            let ph = produced.heights[i];
+            let score = (pw / slot.width).min(slot.width / pw)
+                * (ph / slot.height).min(slot.height / ph);
+
+            let (r, g, b, font_size) = score_visuals(score);
+            commands.spawn((
+                PlayingEntity,
+                ScorePopup { age: 0.0, base_r: r, base_g: g, base_b: b },
+                Text2d::new(format!("{:.0}%", score * 100.0)),
+                TextFont { font_size, ..default() },
+                TextColor(Color::srgba(r, g, b, 1.0)),
+                Transform::from_xyz(
+                    transform.translation.x,
+                    transform.translation.y + ph / 2.0 + 10.0,
+                    2.0,
+                ),
+            ));
+            timer.popup_shown = true;
+        }
+    }
 }
 
 fn score_visuals(score: f32) -> (f32, f32, f32, f32) {

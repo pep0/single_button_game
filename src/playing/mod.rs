@@ -20,6 +20,7 @@ impl Plugin for PlayingPlugin {
                 (
                     input::slot_oscillation,
                     input::production_input,
+                    settle::check_per_block_settle,
                     settle::check_settle,
                     settle::check_failure,
                     ui::camera_follow,

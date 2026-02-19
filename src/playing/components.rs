@@ -12,6 +12,12 @@ pub struct ProductionRect;
 #[derive(Component)]
 pub struct TowerBlock(#[allow(dead_code)] pub usize);
 
+#[derive(Component, Default)]
+pub struct BlockSettleTimer {
+    pub rest_secs: f32,
+    pub popup_shown: bool,
+}
+
 #[derive(Component)]
 pub struct GhostBlock(pub usize);
 

@@ -110,6 +110,7 @@ pub fn production_input(
         commands.spawn((
             PlayingEntity,
             TowerBlock(build_state.current_index),
+            BlockSettleTimer::default(),
             RigidBody::Dynamic,
             Collider::rectangle(produced_width, produced_height),
             Mesh2d(mesh),
