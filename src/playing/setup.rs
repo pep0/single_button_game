@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::blueprint::{self, Blueprint};
 use crate::constants::*;
 use crate::editor::EditorTestPlay;
-use crate::state::{GameState, LevelSequence, Score};
+use crate::state::{GameState, LevelSequence, Score, TowerModeActive};
 use super::components::*;
 use super::resources::*;
 
@@ -18,11 +18,13 @@ pub fn setup_playing(
     sequence: Res<LevelSequence>,
     mut next_state: ResMut<NextState<GameState>>,
     mut physics_time: ResMut<Time<Physics>>,
+    tower_mode: Option<Res<TowerModeActive>>,
+    frozen_query: Query<(&Transform, &FrozenTowerBlock)>,
 ) {
     physics_time.unpause();
     // In test-play mode the Blueprint was pre-inserted by the editor's P handler; clone it.
     // In normal play, load from the sequence file.
-    let blueprint = if testplay.is_some() {
+    let mut blueprint = if testplay.is_some() {
         match existing_blueprint.map(|r| r.clone()) {
             Some(bp) => bp,
             None => {
@@ -49,6 +51,26 @@ pub fn setup_playing(
     };
 
     let num_slots = blueprint.slots.len();
+
+    // In tower mode, offset the blueprint upward so it starts above the frozen stack
+    if tower_mode.is_some() {
+        let frozen_top = frozen_query
+            .iter()
+            .map(|(t, f)| t.translation.y + f.height / 2.0)
+            .fold(GROUND_Y + GROUND_HALF_HEIGHT, f32::max);
+
+        if frozen_top > GROUND_Y + GROUND_HALF_HEIGHT + 1.0 {
+            let blueprint_bottom = blueprint
+                .slots
+                .iter()
+                .map(|s| s.y - s.height / 2.0)
+                .fold(f32::INFINITY, f32::min);
+            let y_offset = frozen_top - blueprint_bottom + 10.0;
+            for slot in blueprint.slots.iter_mut() {
+                slot.y += y_offset;
+            }
+        }
+    }
 
     // Spawn ground as static rigid body (sized mesh, no scale — avian scales colliders with transform)
     let ground_mesh = meshes.add(Rectangle::new(GROUND_WIDTH, GROUND_HALF_HEIGHT * 2.0));
@@ -110,7 +132,7 @@ pub fn setup_playing(
         Transform::from_xyz(0.0, GROUND_Y - 60.0, 1.0),
     ));
 
-    // Init resources — insert/replace Blueprint so Scoring/Failed/settle can read it.
+    // Init resources — insert/replace Blueprint so Failed/settle can read it.
     commands.insert_resource(SlotState::default());
     commands.insert_resource(ProductionState::default());
     commands.insert_resource(BuildState::default());
@@ -122,12 +144,26 @@ pub fn cleanup_playing(
     mut commands: Commands,
     query: Query<Entity, With<PlayingEntity>>,
     mut physics_time: ResMut<Time<Physics>>,
+    tower_mode: Option<Res<TowerModeActive>>,
+    tower_block_query: Query<(Entity, &TowerBlockDims), With<TowerBlock>>,
 ) {
     physics_time.pause();
     for entity in &query {
         commands.entity(entity).despawn();
     }
-    // Keep Blueprint and ProducedDimensions alive for Scoring/Failed to read
+    // In tower mode, convert dropped blocks into frozen static colliders for the next level
+    if tower_mode.is_some() {
+        for (entity, dims) in &tower_block_query {
+            commands.entity(entity)
+                .remove::<TowerBlock>()
+                .remove::<TowerBlockDims>()
+                .remove::<BlockSettleTimer>()
+                .remove::<RigidBody>()
+                .insert(RigidBody::Static)
+                .insert(FrozenTowerBlock { height: dims.height });
+        }
+    }
+    // Keep Blueprint and ProducedDimensions alive for Failed to read
     commands.remove_resource::<BuildState>();
     commands.remove_resource::<SlotState>();
     commands.remove_resource::<ProductionState>();

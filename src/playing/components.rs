@@ -31,3 +31,16 @@ pub struct ScorePopup {
     pub base_g: f32,
     pub base_b: f32,
 }
+
+#[derive(Component)]
+pub struct FrozenTowerBlock {
+    pub height: f32,
+}
+
+#[derive(Component)]
+pub struct TowerBlockDims {
+    pub height: f32,
+}
+
+#[derive(Component)]
+pub struct LevelCompleteOverlay;

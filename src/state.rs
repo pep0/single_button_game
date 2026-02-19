@@ -5,7 +5,6 @@ pub enum GameState {
     #[default]
     Menu,
     Playing,
-    Scoring,
     Failed,
     Stats,
     Editor,
@@ -22,6 +21,9 @@ pub struct Score {
     pub total_score: f32,
     pub rounds_played: usize,
 }
+
+#[derive(Resource)]
+pub struct TowerModeActive;
 
 pub fn cleanup<T: Component>(mut commands: Commands, query: Query<Entity, With<T>>) {
     for entity in &query {

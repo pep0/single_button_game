@@ -9,6 +9,8 @@ pub struct BuildState {
     pub stability_window: f32,
     pub showing_popups: bool,
     pub popup_timer: f32,
+    pub showing_level_complete: bool,
+    pub level_complete_timer: f32,
 }
 
 impl Default for BuildState {
@@ -20,6 +22,8 @@ impl Default for BuildState {
             stability_window: 0.0,
             showing_popups: false,
             popup_timer: 0.0,
+            showing_level_complete: false,
+            level_complete_timer: 0.0,
         }
     }
 }

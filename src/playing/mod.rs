@@ -5,6 +5,7 @@ mod input;
 mod settle;
 mod ui;
 
+pub use components::FrozenTowerBlock;
 pub use resources::*;
 
 use bevy::prelude::*;
@@ -27,6 +28,7 @@ impl Plugin for PlayingPlugin {
                     ui::update_hud,
                     ui::update_ghost_highlights,
                     ui::animate_score_popups,
+                    ui::animate_level_complete,
                 )
                     .run_if(in_state(GameState::Playing)),
             )

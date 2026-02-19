@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use crate::blueprint::Blueprint;
 use crate::constants::*;
+use crate::state::TowerModeActive;
 use super::components::*;
 use super::resources::*;
 
@@ -13,6 +14,9 @@ pub fn slot_oscillation(
     blueprint: Res<Blueprint>,
     mut slot_query: Query<&mut Transform, With<SlotIndicator>>,
 ) {
+    if build_state.showing_level_complete {
+        return;
+    }
     if slot_state.locked_width.is_some() {
         return;
     }
@@ -38,6 +42,7 @@ pub fn production_input(
     mut build_state: ResMut<BuildState>,
     mut produced: ResMut<ProducedDimensions>,
     blueprint: Res<Blueprint>,
+    tower_mode: Option<Res<TowerModeActive>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -107,9 +112,9 @@ pub fn production_input(
         let spawn_y = slot_y;
         let mesh = meshes.add(Rectangle::new(produced_width, produced_height));
         let material = materials.add(ColorMaterial::from_color(TOWER_BLOCK_COLOR));
-        commands.spawn((
-            PlayingEntity,
+        let mut entity_cmd = commands.spawn((
             TowerBlock(build_state.current_index),
+            TowerBlockDims { height: produced_height },
             BlockSettleTimer::default(),
             RigidBody::Dynamic,
             Collider::rectangle(produced_width, produced_height),
@@ -117,6 +122,9 @@ pub fn production_input(
             MeshMaterial2d(material),
             Transform::from_xyz(target_slot.x, spawn_y, 0.5),
         ));
+        if tower_mode.is_none() {
+            entity_cmd.insert(PlayingEntity);
+        }
 
         // Advance to next block immediately; only enter settle phase after last block
         build_state.current_index += 1;
