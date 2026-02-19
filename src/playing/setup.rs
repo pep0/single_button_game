@@ -17,7 +17,9 @@ pub fn setup_playing(
     existing_blueprint: Option<Res<Blueprint>>,
     sequence: Res<LevelSequence>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut physics_time: ResMut<Time<Physics>>,
 ) {
+    physics_time.unpause();
     // In test-play mode the Blueprint was pre-inserted by the editor's P handler; clone it.
     // In normal play, load from the sequence file.
     let blueprint = if testplay.is_some() {
@@ -119,7 +121,9 @@ pub fn setup_playing(
 pub fn cleanup_playing(
     mut commands: Commands,
     query: Query<Entity, With<PlayingEntity>>,
+    mut physics_time: ResMut<Time<Physics>>,
 ) {
+    physics_time.pause();
     for entity in &query {
         commands.entity(entity).despawn();
     }
