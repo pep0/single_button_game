@@ -50,8 +50,19 @@ impl Plugin for SequenceScreenPlugin {
 
 fn setup_sequence_screen(
     mut commands: Commands,
-    state: Res<SequenceEditorState>,
+    mut state: ResMut<SequenceEditorState>,
 ) {
+    // Load entries the first time (guards against Bevy OnEnter/Startup ordering)
+    if state.entries.is_empty() {
+        let entries = file_io::load_sequence();
+        let count = entries.len();
+        state.entries = entries;
+        state.blueprints = vec![None; count];
+        for i in 0..count {
+            let path = state.entries[i].clone();
+            state.blueprints[i] = file_io::load_level_name(&path);
+        }
+    }
     // Title
     commands.spawn((
         SequenceEntity,
@@ -93,7 +104,7 @@ fn setup_sequence_screen(
         Transform::from_xyz(0.0, -280.0, 0.5),
     ));
 
-    // Row entities — spawn one per entry (or just 20 blanks; update fills them)
+    // Row entities — spawn one per entry (at least 1 placeholder)
     let count = state.entries.len().max(1);
     for i in 0..count {
         commands.spawn((

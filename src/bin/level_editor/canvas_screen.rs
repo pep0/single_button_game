@@ -25,7 +25,9 @@ const STATUS_COLOR: Color = Color::srgb(0.9, 0.9, 0.5);
 const INPUT_COLOR: Color = Color::srgb(0.4, 0.9, 0.5);
 
 const GROUND_WIDTH: f32 = 1000.0;
-const HANDLE_SIZE: f32 = HANDLE_HALF_SIZE * 2.0;
+const HANDLE_SIZE: f32 = 8.0;
+const PREV_LEVEL_Y_OFFSET: f32 = -700.0;
+const NEXT_LEVEL_Y_OFFSET: f32 = 700.0;
 
 // ── Components ────────────────────────────────────────────────────────────────
 #[derive(Component)]
@@ -92,7 +94,12 @@ fn setup_canvas(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     state: Res<CanvasState>,
+    mut camera_query: Query<&mut Transform, With<Camera2d>>,
 ) {
+    // Reset camera to origin so each level opens centred
+    if let Ok(mut cam) = camera_query.single_mut() {
+        cam.translation = Vec3::ZERO;
+    }
     // Ground line
     commands.spawn((
         CanvasEntity,
@@ -115,7 +122,7 @@ fn setup_canvas(
     commands.spawn((
         CanvasEntity,
         Text2d::new(
-            "Drag empty=create  Drag block=move  Drag handle=resize  Del=delete block\n\
+            "Drag empty=create  Drag block=move  Drag handle=resize  Del=delete block  RMB=pan\n\
              S=save  F2=rename  Esc=back to sequence",
         ),
         TextFont { font_size: 13.0, ..default() },
@@ -153,25 +160,25 @@ fn setup_canvas(
         Visibility::Hidden,
     ));
 
-    // Prev-level overlays
+    // Prev-level overlays — shifted downward for visual separation
     for slot in &state.prev_slots {
         commands.spawn((
             CanvasEntity,
             OverlayBlock,
             Mesh2d(meshes.add(Rectangle::new(slot.width, slot.height))),
             MeshMaterial2d(materials.add(ColorMaterial::from_color(PREV_COLOR))),
-            Transform::from_xyz(slot.x, slot.y, 0.1),
+            Transform::from_xyz(slot.x, slot.y + PREV_LEVEL_Y_OFFSET, 0.1),
         ));
     }
 
-    // Next-level overlays
+    // Next-level overlays — shifted upward for visual separation
     for slot in &state.next_slots {
         commands.spawn((
             CanvasEntity,
             OverlayBlock,
             Mesh2d(meshes.add(Rectangle::new(slot.width, slot.height))),
             MeshMaterial2d(materials.add(ColorMaterial::from_color(NEXT_COLOR))),
-            Transform::from_xyz(slot.x, slot.y, 0.1),
+            Transform::from_xyz(slot.x, slot.y + NEXT_LEVEL_Y_OFFSET, 0.1),
         ));
     }
 
@@ -212,22 +219,24 @@ pub fn spawn_edit_block(
         ChildOf(parent),
     ));
 
-    // Resize handles — 8 children at edges/corners
-    for handle_pos in HandlePosition::all() {
-        let (sx, sy) = handle_pos.offset_signs();
-        let hx = sx * slot.width / 2.0;
-        let hy = sy * slot.height / 2.0;
-        commands.spawn((
-            CanvasEntity,
-            ResizeHandle {
-                position: handle_pos,
-                slot_index,
-            },
-            Mesh2d(meshes.add(Rectangle::new(HANDLE_SIZE, HANDLE_SIZE))),
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(HANDLE_COLOR))),
-            Transform::from_xyz(hx, hy, 1.0),
-            ChildOf(parent),
-        ));
+    // Resize handles — 8 children at edges/corners, only for selected block
+    if selected {
+        for handle_pos in HandlePosition::all() {
+            let (sx, sy) = handle_pos.offset_signs();
+            let hx = sx * slot.width / 2.0;
+            let hy = sy * slot.height / 2.0;
+            commands.spawn((
+                CanvasEntity,
+                ResizeHandle {
+                    position: handle_pos,
+                    slot_index,
+                },
+                Mesh2d(meshes.add(Rectangle::new(HANDLE_SIZE, HANDLE_SIZE))),
+                MeshMaterial2d(materials.add(ColorMaterial::from_color(HANDLE_COLOR))),
+                Transform::from_xyz(hx, hy, 1.0),
+                ChildOf(parent),
+            ));
+        }
     }
 }
 
@@ -240,6 +249,7 @@ fn cleanup_canvas(
         commands.entity(e).despawn();
     }
     drag.mode = DragMode::Idle;
+    drag.pan = None;
 }
 
 // ── Sync ECS ──────────────────────────────────────────────────────────────────
@@ -282,6 +292,7 @@ fn canvas_mouse_input(
     mut drag: ResMut<DragState>,
     handle_query: Query<(&ResizeHandle, &GlobalTransform)>,
     mut preview_query: Query<&mut Transform, With<PreviewBlock>>,
+    mut cam_transform_query: Query<&mut Transform, (With<Camera2d>, Without<PreviewBlock>)>,
 ) {
     if canvas.text_input.is_some() || canvas.showing_unsaved_warning {
         return;
@@ -361,14 +372,21 @@ fn canvas_mouse_input(
                     canvas.sync_needed = true;
                 }
             }
-            DragMode::ResizingBlock { slot_index, anchor, .. } => {
+            DragMode::ResizingBlock { slot_index, handle, anchor } => {
                 let si = *slot_index;
                 let anch = *anchor;
+                let hp = *handle;
                 if let Some(slot) = canvas.slots.get_mut(si) {
-                    let min_x = world_pos.x.min(anch.x);
-                    let max_x = world_pos.x.max(anch.x);
-                    let min_y = world_pos.y.min(anch.y);
-                    let max_y = world_pos.y.max(anch.y);
+                    let (min_x, max_x) = if hp.controls_x() {
+                        (world_pos.x.min(anch.x), world_pos.x.max(anch.x))
+                    } else {
+                        (slot.x - slot.width / 2.0, slot.x + slot.width / 2.0)
+                    };
+                    let (min_y, max_y) = if hp.controls_y() {
+                        (world_pos.y.min(anch.y), world_pos.y.max(anch.y))
+                    } else {
+                        (slot.y - slot.height / 2.0, slot.y + slot.height / 2.0)
+                    };
                     slot.width = (max_x - min_x).max(10.0);
                     slot.height = (max_y - min_y).max(10.0);
                     slot.x = (min_x + max_x) / 2.0;
@@ -393,6 +411,24 @@ fn canvas_mouse_input(
             }
             DragMode::Idle => {}
         }
+    }
+
+    // ── Right-click pan ───────────────────────────────────────────────────────
+    if mouse.just_pressed(MouseButton::Right) {
+        if let Ok(cam) = cam_transform_query.single() {
+            drag.pan = Some((cursor_pos, cam.translation));
+        }
+    }
+    if mouse.pressed(MouseButton::Right) {
+        if let Some((start_cursor, start_cam)) = drag.pan {
+            if let Ok(mut cam) = cam_transform_query.single_mut() {
+                let delta = cursor_pos - start_cursor;
+                cam.translation = start_cam + Vec3::new(-delta.x, delta.y, 0.0);
+            }
+        }
+    }
+    if mouse.just_released(MouseButton::Right) {
+        drag.pan = None;
     }
 
     // ── Mouse release ─────────────────────────────────────────────────────────
