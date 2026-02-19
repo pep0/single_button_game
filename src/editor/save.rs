@@ -176,15 +176,22 @@ fn save_blocks(
         level_number: 7,
     };
 
+    let full_path = std::path::Path::new("levels/custom").join(filename);
     match serde_json::to_string_pretty(&blueprint) {
-        Ok(json) => match std::fs::write(filename, json.as_bytes()) {
-            Ok(_) => {
-                build_state.status_msg = format!("Saved \u{2192} {filename}");
+        Ok(json) => {
+            if let Err(e) = std::fs::create_dir_all("levels/custom") {
+                build_state.status_msg = format!("Error creating directory: {e}");
+                return;
             }
-            Err(e) => {
-                build_state.status_msg = format!("Error writing file: {e}");
+            match std::fs::write(&full_path, json.as_bytes()) {
+                Ok(_) => {
+                    build_state.status_msg = format!("Saved \u{2192} levels/custom/{filename}");
+                }
+                Err(e) => {
+                    build_state.status_msg = format!("Error writing file: {e}");
+                }
             }
-        },
+        }
         Err(e) => {
             build_state.status_msg = format!("Serialization error: {e}");
         }

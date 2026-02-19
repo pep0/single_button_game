@@ -12,3 +12,6 @@ debug/
 
 # macOS
 .DS_Store
+
+# Editor-saved custom levels
+levels/custom/*.json

@@ -1,10 +1,10 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::blueprint::{build_blueprint, Blueprint};
+use crate::blueprint::{self, Blueprint};
 use crate::constants::*;
 use crate::editor::EditorTestPlay;
-use crate::state::Score;
+use crate::state::{GameState, LevelSequence, Score};
 use super::components::*;
 use super::resources::*;
 
@@ -15,15 +15,35 @@ pub fn setup_playing(
     mut materials: ResMut<Assets<ColorMaterial>>,
     testplay: Option<Res<EditorTestPlay>>,
     existing_blueprint: Option<Res<Blueprint>>,
+    sequence: Res<LevelSequence>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     // In test-play mode the Blueprint was pre-inserted by the editor's P handler; clone it.
-    // In normal play, build a fresh one from the current round.
+    // In normal play, load from the sequence file.
     let blueprint = if testplay.is_some() {
-        existing_blueprint
-            .map(|r| r.clone())
-            .unwrap_or_else(|| build_blueprint(score.round))
+        match existing_blueprint.map(|r| r.clone()) {
+            Some(bp) => bp,
+            None => {
+                next_state.set(GameState::Menu);
+                return;
+            }
+        }
     } else {
-        build_blueprint(score.round)
+        let path = match sequence.entries.get(score.round) {
+            Some(p) => p.clone(),
+            None => {
+                next_state.set(GameState::Menu);
+                return;
+            }
+        };
+        match blueprint::load_blueprint(&path) {
+            Ok(bp) => bp,
+            Err(e) => {
+                bevy::log::error!("Failed to load blueprint {path}: {e}");
+                next_state.set(GameState::Menu);
+                return;
+            }
+        }
     };
 
     let num_slots = blueprint.slots.len();

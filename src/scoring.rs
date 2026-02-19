@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::blueprint::Blueprint;
 use crate::constants::*;
 use crate::playing::ProducedDimensions;
-use crate::state::{cleanup, cleanup_shared_resources, GameState, Score};
+use crate::state::{cleanup, cleanup_shared_resources, GameState, LevelSequence, Score};
 
 pub struct ScoringPlugin;
 
@@ -26,6 +26,7 @@ fn setup_scoring(
     blueprint: Res<Blueprint>,
     produced: Res<ProducedDimensions>,
     mut score: ResMut<Score>,
+    sequence: Res<LevelSequence>,
 ) {
     let mut shape_scores = Vec::new();
     let mut total = 0.0;
@@ -118,9 +119,15 @@ fn setup_scoring(
         ));
     }
 
+    let is_last = score.round + 1 >= sequence.entries.len();
+    let prompt = if is_last {
+        "Press SPACE to see final results"
+    } else {
+        "Press SPACE for next level"
+    };
     commands.spawn((
         ScoringEntity,
-        Text2d::new("Press SPACE for next level"),
+        Text2d::new(prompt),
         TextFont {
             font_size: 22.0,
             ..default()
@@ -134,9 +141,15 @@ fn scoring_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut next_state: ResMut<NextState<GameState>>,
     mut score: ResMut<Score>,
+    sequence: Res<LevelSequence>,
 ) {
     if keyboard.just_pressed(KeyCode::Space) {
-        score.round += 1;
-        next_state.set(GameState::Playing);
+        let next = score.round + 1;
+        score.round = next;
+        if next >= sequence.entries.len() {
+            next_state.set(GameState::Stats);
+        } else {
+            next_state.set(GameState::Playing);
+        }
     }
 }

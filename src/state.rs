@@ -7,7 +7,13 @@ pub enum GameState {
     Playing,
     Scoring,
     Failed,
+    Stats,
     Editor,
+}
+
+#[derive(Resource, Default)]
+pub struct LevelSequence {
+    pub entries: Vec<String>,
 }
 
 #[derive(Resource, Default)]

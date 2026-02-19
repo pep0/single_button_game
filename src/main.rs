@@ -6,11 +6,12 @@ mod menu;
 mod playing;
 mod scoring;
 mod state;
+mod stats;
 
 use avian2d::prelude::*;
 use bevy::{prelude::*, window::WindowResolution};
 use constants::*;
-use state::{GameState, Score};
+use state::{GameState, LevelSequence, Score};
 
 fn main() {
     App::new()
@@ -27,12 +28,14 @@ fn main() {
         .insert_resource(Gravity(Vec2::new(0.0, -GRAVITY_SCALE)))
         .init_state::<GameState>()
         .init_resource::<Score>()
-        .add_systems(Startup, setup_camera)
+        .init_resource::<LevelSequence>()
+        .add_systems(Startup, (setup_camera, load_level_sequence))
         .add_plugins((
             menu::MenuPlugin,
             playing::PlayingPlugin,
             scoring::ScoringPlugin,
             failed::FailedPlugin,
+            stats::StatsPlugin,
             editor::EditorPlugin,
         ))
         .run();
@@ -40,4 +43,10 @@ fn main() {
 
 fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
+}
+
+fn load_level_sequence(mut commands: Commands) {
+    commands.insert_resource(LevelSequence {
+        entries: blueprint::load_sequence(),
+    });
 }
