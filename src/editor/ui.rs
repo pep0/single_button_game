@@ -45,9 +45,18 @@ pub fn editor_camera_follow(
 
 /// Refreshes the HUD text with current block count and status message.
 pub fn editor_update_hud(
-    build_state: Res<EditorBuildState>,
+    mut build_state: ResMut<EditorBuildState>,
+    time: Res<Time>,
     mut hud_query: Query<&mut Text2d, With<EditorHudText>>,
 ) {
+    // Tick down the status message timer.
+    if build_state.status_timer > 0.0 {
+        build_state.status_timer -= time.delta_secs();
+        if build_state.status_timer <= 0.0 {
+            build_state.status_msg.clear();
+        }
+    }
+
     if let Ok(mut text) = hud_query.single_mut() {
         // Filename input mode overrides everything else.
         if let Some(ref buf) = build_state.filename_input {
@@ -56,12 +65,12 @@ pub fn editor_update_hud(
         }
 
         let status = if build_state.status_msg.is_empty() {
-            "Arrows: move   Space/\u{2193}: place   S: save   R: reset   P: test   Esc: menu"
+            "Arrows: move   Space/Down: place   S: save   R: reset   P: test   Esc: menu"
         } else {
             &build_state.status_msg
         };
         text.0 = format!(
-            "Level Editor  |  Blocks: {}  |  {}",
+            "Level Editor  |  Blocks: {}\n{}",
             build_state.block_count, status
         );
     }

@@ -31,6 +31,8 @@ impl Default for EditorSlotState {
 pub struct EditorBuildState {
     pub block_count: usize,
     pub status_msg: String,
+    /// Seconds remaining before `status_msg` is auto-cleared; 0.0 = expired.
+    pub status_timer: f32,
     /// `None` = inactive, `Some(buf)` = user is typing a filename.
     pub filename_input: Option<String>,
     /// Height of the last placed block (used by Arrow-Down instant-place).
@@ -42,6 +44,7 @@ impl Default for EditorBuildState {
         Self {
             block_count: 0,
             status_msg: String::new(),
+            status_timer: 0.0,
             filename_input: None,
             last_block_height: 50.0,
         }

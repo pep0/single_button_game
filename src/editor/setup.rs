@@ -49,7 +49,7 @@ pub fn setup_editor(
         EditorEntity,
         EditorHudText,
         Text2d::new(
-            "Level Editor  |  Blocks: 0  |  Arrows: move   Space/\u{2193}: place   S: save   R: reset   P: test   Esc: menu",
+            "Level Editor  |  Blocks: 0\nArrows: move   Space/Down: place   S: save   R: reset   P: test   Esc: menu",
         ),
         TextFont {
             font_size: 16.0,
