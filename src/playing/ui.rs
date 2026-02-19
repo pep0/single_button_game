@@ -79,13 +79,9 @@ pub fn animate_score_popups(
     mut next_state: ResMut<NextState<GameState>>,
     testplay: Option<Res<EditorTestPlay>>,
 ) {
-    if !build_state.showing_popups {
-        return;
-    }
-
     let dt = time.delta_secs();
-    build_state.popup_timer += dt;
 
+    // Always animate any existing popups (rise + fade), regardless of settle state
     for (mut popup, mut transform, mut color) in &mut popup_query {
         popup.age += dt;
         transform.translation.y += POPUP_FLOAT_SPEED * dt;
@@ -93,6 +89,12 @@ pub fn animate_score_popups(
         color.0 = Color::srgba(popup.base_r, popup.base_g, popup.base_b, alpha);
     }
 
+    // State transition still waits for global settle to complete
+    if !build_state.showing_popups {
+        return;
+    }
+
+    build_state.popup_timer += dt;
     if build_state.popup_timer >= POPUP_DURATION {
         build_state.showing_popups = false;
         if testplay.is_some() {
