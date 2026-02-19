@@ -11,8 +11,8 @@ use crate::hit_test::{self, HitResult, HANDLE_HALF_SIZE};
 use crate::state::{CanvasInput, CanvasState, EditorScreen, SequenceEditorState};
 
 // ── Colors ────────────────────────────────────────────────────────────────────
-const PREV_COLOR: Color = Color::srgba(1.0, 0.5, 0.1, 0.25);
-const NEXT_COLOR: Color = Color::srgba(0.1, 0.8, 1.0, 0.25);
+const PREV_COLOR: Color = Color::srgba(1.0, 0.5, 0.1, 0.5);
+const NEXT_COLOR: Color = Color::srgba(0.1, 0.8, 1.0, 0.5);
 const EDIT_BLOCK_COLOR: Color = Color::srgb(0.4, 0.6, 0.9);
 const EDIT_BLOCK_SELECTED: Color = Color::srgb(0.6, 0.8, 1.0);
 const HANDLE_COLOR: Color = Color::srgb(1.0, 1.0, 1.0);
@@ -26,8 +26,7 @@ const INPUT_COLOR: Color = Color::srgb(0.4, 0.9, 0.5);
 
 const GROUND_WIDTH: f32 = 1000.0;
 const HANDLE_SIZE: f32 = 8.0;
-const PREV_LEVEL_Y_OFFSET: f32 = -700.0;
-const NEXT_LEVEL_Y_OFFSET: f32 = 700.0;
+const OVERLAY_GAP: f32 = 50.0;
 
 // ── Components ────────────────────────────────────────────────────────────────
 #[derive(Component)]
@@ -160,25 +159,53 @@ fn setup_canvas(
         Visibility::Hidden,
     ));
 
-    // Prev-level overlays — shifted downward for visual separation
+    // Compute bounding box of current level (fall back to GROUND_Y if empty)
+    let current_bottom = state.slots.iter()
+        .map(|s| s.y - s.height / 2.0)
+        .fold(GROUND_Y, f32::min);
+    let current_top = state.slots.iter()
+        .map(|s| s.y + s.height / 2.0)
+        .fold(GROUND_Y, f32::max);
+
+    // Prev level: align its top edge to (current_bottom - OVERLAY_GAP)
+    let prev_y_offset = if state.prev_slots.is_empty() {
+        0.0
+    } else {
+        let prev_top = state.prev_slots.iter()
+            .map(|s| s.y + s.height / 2.0)
+            .fold(f32::NEG_INFINITY, f32::max);
+        current_bottom - OVERLAY_GAP - prev_top
+    };
+
+    // Next level: align its bottom edge to (current_top + OVERLAY_GAP)
+    let next_y_offset = if state.next_slots.is_empty() {
+        0.0
+    } else {
+        let next_bottom = state.next_slots.iter()
+            .map(|s| s.y - s.height / 2.0)
+            .fold(f32::INFINITY, f32::min);
+        current_top + OVERLAY_GAP - next_bottom
+    };
+
+    // Prev-level overlays — positioned just below current level
     for slot in &state.prev_slots {
         commands.spawn((
             CanvasEntity,
             OverlayBlock,
             Mesh2d(meshes.add(Rectangle::new(slot.width, slot.height))),
             MeshMaterial2d(materials.add(ColorMaterial::from_color(PREV_COLOR))),
-            Transform::from_xyz(slot.x, slot.y + PREV_LEVEL_Y_OFFSET, 0.1),
+            Transform::from_xyz(slot.x, slot.y + prev_y_offset, 0.1),
         ));
     }
 
-    // Next-level overlays — shifted upward for visual separation
+    // Next-level overlays — positioned just above current level
     for slot in &state.next_slots {
         commands.spawn((
             CanvasEntity,
             OverlayBlock,
             Mesh2d(meshes.add(Rectangle::new(slot.width, slot.height))),
             MeshMaterial2d(materials.add(ColorMaterial::from_color(NEXT_COLOR))),
-            Transform::from_xyz(slot.x, slot.y + NEXT_LEVEL_Y_OFFSET, 0.1),
+            Transform::from_xyz(slot.x, slot.y + next_y_offset, 0.1),
         ));
     }
 
