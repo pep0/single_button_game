@@ -13,7 +13,7 @@ pub fn slot_oscillation(
     blueprint: Res<Blueprint>,
     mut slot_query: Query<&mut Transform, With<SlotIndicator>>,
 ) {
-    if slot_state.locked_width.is_some() || build_state.waiting_for_settle {
+    if slot_state.locked_width.is_some() {
         return;
     }
 
