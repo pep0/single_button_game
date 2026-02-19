@@ -7,6 +7,8 @@ pub struct BuildState {
     pub waiting_for_settle: bool,
     pub settle_timer: f32,
     pub stability_window: f32,
+    pub showing_popups: bool,
+    pub popup_timer: f32,
 }
 
 impl Default for BuildState {
@@ -16,6 +18,8 @@ impl Default for BuildState {
             waiting_for_settle: false,
             settle_timer: 0.0,
             stability_window: 0.0,
+            showing_popups: false,
+            popup_timer: 0.0,
         }
     }
 }
@@ -49,6 +53,7 @@ pub struct ProductionState {
 pub struct ProducedDimensions {
     pub widths: Vec<f32>,
     pub heights: Vec<f32>,
+    pub scores: Vec<f32>,
 }
 
 impl Default for ProducedDimensions {
@@ -56,6 +61,7 @@ impl Default for ProducedDimensions {
         Self {
             widths: Vec::new(),
             heights: Vec::new(),
+            scores: Vec::new(),
         }
     }
 }

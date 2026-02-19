@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 use crate::blueprint::Blueprint;
 use crate::constants::*;
+use crate::editor::EditorTestPlay;
+use crate::state::GameState;
 use super::components::*;
 use super::resources::*;
 
@@ -67,5 +69,36 @@ pub fn update_hud(
             "Level: {}    Block: {}/{}",
             blueprint.level_number, block_num, blueprint.slots.len(),
         );
+    }
+}
+
+pub fn animate_score_popups(
+    time: Res<Time>,
+    mut build_state: ResMut<BuildState>,
+    mut popup_query: Query<(&mut ScorePopup, &mut Transform, &mut TextColor)>,
+    mut next_state: ResMut<NextState<GameState>>,
+    testplay: Option<Res<EditorTestPlay>>,
+) {
+    if !build_state.showing_popups {
+        return;
+    }
+
+    let dt = time.delta_secs();
+    build_state.popup_timer += dt;
+
+    for (mut popup, mut transform, mut color) in &mut popup_query {
+        popup.age += dt;
+        transform.translation.y += POPUP_FLOAT_SPEED * dt;
+        let alpha = (1.0 - popup.age / POPUP_DURATION).max(0.0);
+        color.0 = Color::srgba(popup.base_r, popup.base_g, popup.base_b, alpha);
+    }
+
+    if build_state.popup_timer >= POPUP_DURATION {
+        build_state.showing_popups = false;
+        if testplay.is_some() {
+            next_state.set(GameState::Editor);
+        } else {
+            next_state.set(GameState::Scoring);
+        }
     }
 }

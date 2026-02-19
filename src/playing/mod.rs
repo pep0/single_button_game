@@ -25,6 +25,7 @@ impl Plugin for PlayingPlugin {
                     ui::camera_follow,
                     ui::update_hud,
                     ui::update_ghost_highlights,
+                    ui::animate_score_popups,
                 )
                     .run_if(in_state(GameState::Playing)),
             )

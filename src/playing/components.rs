@@ -17,3 +17,11 @@ pub struct GhostBlock(pub usize);
 
 #[derive(Component)]
 pub struct HudText;
+
+#[derive(Component)]
+pub struct ScorePopup {
+    pub age: f32,
+    pub base_r: f32,
+    pub base_g: f32,
+    pub base_b: f32,
+}

@@ -31,6 +31,10 @@ pub const MAX_HEIGHT: f32 = 200.0;
 // === Physics tuning ===
 pub const GRAVITY_SCALE: f32 = 800.0;
 
+// === Score Popup Constants ===
+pub const POPUP_DURATION: f32 = 1.8;
+pub const POPUP_FLOAT_SPEED: f32 = 40.0;
+
 // === Editor Constants ===
 pub const EDITOR_SLOT_MOVE_SPEED: f32 = 200.0;
 pub const EDITOR_FALL_SPEED: f32 = 400.0;

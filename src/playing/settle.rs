@@ -10,8 +10,10 @@ use super::resources::*;
 
 pub fn check_settle(
     time: Res<Time>,
+    mut commands: Commands,
     mut build_state: ResMut<BuildState>,
     blueprint: Res<Blueprint>,
+    mut produced: ResMut<ProducedDimensions>,
     block_query: Query<(&TowerBlock, &Transform, Option<&Sleeping>, &LinearVelocity)>,
     mut next_state: ResMut<NextState<GameState>>,
     testplay: Option<Res<EditorTestPlay>>,
@@ -71,11 +73,62 @@ pub fn check_settle(
         }
     }
 
-    // All blocks passed
-    if testplay.is_some() {
-        next_state.set(GameState::Editor);
+    // Compute per-block scores
+    let n = blueprint.slots.len();
+    let mut scores = vec![0.0f32; n];
+    let mut block_data: Vec<(usize, f32, Vec3, f32)> = Vec::new(); // (slot_idx, score, pos, height)
+
+    for (tower_block, transform, _, _) in &block_query {
+        let i = tower_block.0;
+        let slot = &blueprint.slots[i];
+        let pw = produced.widths[i];
+        let ph = produced.heights[i];
+        let w_ratio = (pw / slot.width).min(slot.width / pw);
+        let h_ratio = (ph / slot.height).min(slot.height / ph);
+        let score = w_ratio * h_ratio;
+        scores[i] = score;
+        block_data.push((i, score, transform.translation, ph));
+    }
+
+    // Per-block 30% failure check
+    for &(_, score, _, _) in &block_data {
+        if score < 0.30 {
+            if testplay.is_some() {
+                next_state.set(GameState::Editor);
+            } else {
+                next_state.set(GameState::Failed);
+            }
+            return;
+        }
+    }
+
+    // Store scores and spawn popups
+    produced.scores = scores;
+
+    for &(_, score, pos, height) in &block_data {
+        let (r, g, b, font_size) = score_visuals(score);
+        commands.spawn((
+            PlayingEntity,
+            ScorePopup { age: 0.0, base_r: r, base_g: g, base_b: b },
+            Text2d::new(format!("{:.0}%", score * 100.0)),
+            TextFont { font_size, ..default() },
+            TextColor(Color::srgba(r, g, b, 1.0)),
+            Transform::from_xyz(pos.x, pos.y + height / 2.0 + 10.0, 2.0),
+        ));
+    }
+
+    build_state.waiting_for_settle = false;
+    build_state.showing_popups = true;
+    // State transition will be fired by animate_score_popups after popup animation completes
+}
+
+fn score_visuals(score: f32) -> (f32, f32, f32, f32) {
+    if score >= 0.80 {
+        (0.2, 0.95, 0.55, 28.0)   // bright green, large
+    } else if score >= 0.60 {
+        (0.95, 0.80, 0.2, 22.0)   // warm yellow, medium
     } else {
-        next_state.set(GameState::Scoring);
+        (0.65, 0.65, 0.65, 16.0)  // grey, small
     }
 }
 

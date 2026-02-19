@@ -28,21 +28,8 @@ fn setup_scoring(
     mut score: ResMut<Score>,
     sequence: Res<LevelSequence>,
 ) {
-    let mut shape_scores = Vec::new();
-    let mut total = 0.0;
-
-    for (i, slot) in blueprint.slots.iter().enumerate() {
-        if i >= produced.widths.len() {
-            break;
-        }
-        let pw = produced.widths[i];
-        let ph = produced.heights[i];
-        let w_ratio = (pw / slot.width).min(slot.width / pw);
-        let h_ratio = (ph / slot.height).min(slot.height / ph);
-        let s = w_ratio * h_ratio;
-        shape_scores.push(s);
-        total += s;
-    }
+    let shape_scores = produced.scores.clone();
+    let total: f32 = shape_scores.iter().sum();
 
     let avg = if shape_scores.is_empty() {
         0.0
