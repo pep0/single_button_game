@@ -27,9 +27,11 @@ pub fn slot_oscillation(
 
     if let Ok(mut transform) = slot_query.single_mut() {
         transform.scale.x = slot_state.current_width;
-        // Position slot above current target block's x
+        // Position slot above current target block
         if build_state.current_index < blueprint.slots.len() {
-            transform.translation.x = blueprint.slots[build_state.current_index].x;
+            let target = &blueprint.slots[build_state.current_index];
+            transform.translation.x = target.x;
+            transform.translation.y = target.y + target.height / 2.0 + SPAWN_HEIGHT_ABOVE;
         }
     }
 }

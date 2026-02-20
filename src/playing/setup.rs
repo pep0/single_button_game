@@ -99,13 +99,8 @@ pub fn setup_playing(
         ));
     }
 
-    // Compute slot indicator Y: above the highest ghost block
-    let max_ghost_y = blueprint
-        .slots
-        .iter()
-        .map(|s| s.y + s.height / 2.0)
-        .fold(f32::NEG_INFINITY, f32::max);
-    let slot_y = max_ghost_y + SPAWN_HEIGHT_ABOVE;
+    // Compute slot indicator Y: above the first (lowest) block; slot_oscillation updates it each frame
+    let slot_y = blueprint.slots[0].y + blueprint.slots[0].height / 2.0 + SPAWN_HEIGHT_ABOVE;
 
     // Spawn slot indicator
     let slot_mesh = meshes.add(Rectangle::new(1.0, 1.0));
