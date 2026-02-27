@@ -1,5 +1,21 @@
 use bevy::prelude::*;
+use bevy_svg::prelude::Svg;
 use crate::constants::*;
+
+#[derive(Resource)]
+pub struct BlockSvgAssets {
+    pub green:  Handle<Svg>,
+    pub yellow: Handle<Svg>,
+    pub grey:   Handle<Svg>,
+}
+
+#[derive(Resource, Default)]
+pub struct ScreenShake {
+    /// Current trauma level 0.0–1.0; decays over time.
+    pub trauma: f32,
+    /// Logical camera Y (without shake offset), tracked here so shake doesn't drift the lerp.
+    pub base_camera_y: f32,
+}
 
 #[derive(Resource)]
 pub struct BuildState {

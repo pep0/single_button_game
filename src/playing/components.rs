@@ -16,6 +16,8 @@ pub struct TowerBlock(#[allow(dead_code)] pub usize);
 pub struct BlockSettleTimer {
     pub rest_secs: f32,
     pub popup_shown: bool,
+    pub prev_speed: f32,
+    pub collision_cooldown: f32, // seconds until next collision sound allowed
 }
 
 #[derive(Component)]
@@ -44,3 +46,9 @@ pub struct TowerBlockDims {
 
 #[derive(Component)]
 pub struct LevelCompleteOverlay;
+
+#[derive(Component)]
+pub struct HeartIcon(pub usize); // index 0..MAX_LIVES-1
+
+#[derive(Component)]
+pub struct EvaluatingText;

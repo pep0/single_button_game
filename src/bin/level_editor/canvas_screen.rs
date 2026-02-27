@@ -3,7 +3,7 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
 use bevy::prelude::*;
 use single_button_game::blueprint::BlockSlot;
-use single_button_game::constants::GROUND_Y;
+use single_button_game::constants::{GROUND_Y, SLOT_MAX_WIDTH};
 
 use crate::drag::{DragMode, DragState, HandlePosition};
 use crate::file_io;
@@ -25,12 +25,19 @@ const STATUS_COLOR: Color = Color::srgb(0.9, 0.9, 0.5);
 const INPUT_COLOR: Color = Color::srgb(0.4, 0.9, 0.5);
 
 const GROUND_WIDTH: f32 = 1000.0;
+
+fn snap(v: f32, grid: f32) -> f32 {
+    (v / grid).round() * grid
+}
 const HANDLE_SIZE: f32 = 8.0;
 const OVERLAY_GAP: f32 = 50.0;
 
 // ── Components ────────────────────────────────────────────────────────────────
 #[derive(Component)]
 pub struct CanvasEntity;
+
+#[derive(Component)]
+struct GridLine;
 
 #[derive(Component)]
 pub struct EditBlock {
@@ -74,6 +81,7 @@ impl Plugin for CanvasScreenPlugin {
                 Update,
                 (
                     canvas_keyboard,
+                    canvas_sync_grid,
                     canvas_mouse_input,
                     canvas_sync_to_ecs,
                     canvas_hover_system,
@@ -121,7 +129,7 @@ fn setup_canvas(
     commands.spawn((
         CanvasEntity,
         Text2d::new(
-            "Drag empty=create  Drag block=move  Drag handle=resize  Del=delete block  RMB=pan\n\
+            "Drag empty=create  Drag block=move  Drag handle=resize  Del=delete  RMB=pan  G=grid\n\
              S=save  F2=rename  Esc=back to sequence",
         ),
         TextFont { font_size: 13.0, ..default() },
@@ -271,12 +279,71 @@ fn cleanup_canvas(
     mut commands: Commands,
     query: Query<Entity, With<CanvasEntity>>,
     mut drag: ResMut<DragState>,
+    mut canvas: ResMut<CanvasState>,
 ) {
     for e in &query {
         commands.entity(e).despawn();
     }
     drag.mode = DragMode::Idle;
     drag.pan = None;
+    // Force grid rebuild on next canvas entry so lines are respawned if grid is active
+    canvas.grid_needs_rebuild = true;
+}
+
+// ── Grid lines ────────────────────────────────────────────────────────────────
+
+fn canvas_sync_grid(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut canvas: ResMut<CanvasState>,
+    grid_query: Query<Entity, With<GridLine>>,
+) {
+    if !canvas.grid_needs_rebuild {
+        return;
+    }
+    canvas.grid_needs_rebuild = false;
+
+    // Despawn old lines
+    for e in &grid_query {
+        commands.entity(e).despawn();
+    }
+
+    let g = canvas.snap_grid;
+    if g <= 0.0 {
+        return;
+    }
+
+    let x_min = -800.0_f32;
+    let x_max =  800.0_f32;
+    let y_min = -500.0_f32;
+    let y_max = 1500.0_f32;
+    let w = x_max - x_min;
+    let h = y_max - y_min;
+    let color = Color::srgba(0.5, 0.5, 0.7, 0.2);
+
+    // Vertical lines
+    let mut x = x_min;
+    while x <= x_max + 0.001 {
+        commands.spawn((
+            CanvasEntity, GridLine,
+            Mesh2d(meshes.add(Rectangle::new(1.0, h))),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
+            Transform::from_xyz(x, (y_min + y_max) / 2.0, -0.2),
+        ));
+        x += g;
+    }
+    // Horizontal lines
+    let mut y = y_min;
+    while y <= y_max + 0.001 {
+        commands.spawn((
+            CanvasEntity, GridLine,
+            Mesh2d(meshes.add(Rectangle::new(w, 1.0))),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
+            Transform::from_xyz((x_min + x_max) / 2.0, y, -0.2),
+        ));
+        y += g;
+    }
 }
 
 // ── Sync ECS ──────────────────────────────────────────────────────────────────
@@ -329,6 +396,12 @@ fn canvas_mouse_input(
     let Some(cursor_pos) = window.cursor_position() else { return };
     let Ok((camera, cam_gt)) = camera_query.single() else { return };
     let Ok(world_pos) = camera.viewport_to_world_2d(cam_gt, cursor_pos) else { return };
+    // Snap to grid if enabled
+    let world_pos = if canvas.snap_grid > 0.0 {
+        Vec2::new(snap(world_pos.x, canvas.snap_grid), snap(world_pos.y, canvas.snap_grid))
+    } else {
+        world_pos
+    };
 
     // Collect handle world positions for hit test
     let handle_positions: Vec<(usize, HandlePosition, Vec2)> = handle_query
@@ -414,7 +487,7 @@ fn canvas_mouse_input(
                     } else {
                         (slot.y - slot.height / 2.0, slot.y + slot.height / 2.0)
                     };
-                    slot.width = (max_x - min_x).max(10.0);
+                    slot.width = (max_x - min_x).max(10.0).min(SLOT_MAX_WIDTH);
                     slot.height = (max_y - min_y).max(10.0);
                     slot.x = (min_x + max_x) / 2.0;
                     slot.y = (min_y + max_y) / 2.0;
@@ -429,7 +502,7 @@ fn canvas_mouse_input(
                 let max_x = world_pos.x.max(start.x);
                 let min_y = world_pos.y.min(start.y);
                 let max_y = world_pos.y.max(start.y);
-                let w = (max_x - min_x).max(1.0);
+                let w = (max_x - min_x).max(1.0).min(SLOT_MAX_WIDTH);
                 let h = (max_y - min_y).max(1.0);
                 if let Ok(mut t) = preview_query.get_mut(pe) {
                     t.translation = Vec3::new((min_x + max_x) / 2.0, (min_y + max_y) / 2.0, 0.8);
@@ -467,7 +540,7 @@ fn canvas_mouse_input(
             let max_x = world_pos.x.max(start.x);
             let min_y = world_pos.y.min(start.y);
             let max_y = world_pos.y.max(start.y);
-            let w = max_x - min_x;
+            let w = (max_x - min_x).min(SLOT_MAX_WIDTH);
             let h = max_y - min_y;
 
             commands.entity(pe).despawn();
@@ -558,8 +631,13 @@ fn canvas_update_hud(
             .as_deref()
             .map(|n| format!(" \"{n}\""))
             .unwrap_or_default();
+        let grid_label = if canvas.snap_grid > 0.0 {
+            format!("  |  Grid: {}px", canvas.snap_grid as u32)
+        } else {
+            "  |  Grid: off".to_string()
+        };
         text.0 = format!(
-            "{path_str}{name_str}{dirty_mark}  |  {} blocks",
+            "{path_str}{name_str}{dirty_mark}  |  {} blocks{grid_label}",
             canvas.slots.len()
         );
     }
@@ -706,7 +784,7 @@ fn canvas_keyboard(
     key_events.clear();
 
     // ── Delete selected block ────────────────────────────────────────────────
-    if keyboard.just_pressed(KeyCode::Delete) {
+    if keyboard.just_pressed(KeyCode::Delete) || keyboard.just_pressed(KeyCode::Backspace) {
         if let Some(sel) = canvas.selected_block {
             if sel < canvas.slots.len() {
                 canvas.slots.remove(sel);
@@ -735,6 +813,17 @@ fn canvas_keyboard(
         canvas.text_input = Some(CanvasInput::LevelName {
             buf: canvas.name.clone().unwrap_or_default(),
         });
+    }
+
+    // ── G: cycle snap grid ────────────────────────────────────────────────────
+    if keyboard.just_pressed(KeyCode::KeyG) {
+        canvas.snap_grid = match canvas.snap_grid as u32 {
+            0  => 5.0,
+            5  => 10.0,
+            10 => 20.0,
+            _  => 0.0,
+        };
+        canvas.grid_needs_rebuild = true;
     }
 
     // ── Escape: back to sequence ───────────────────────────────────────────────

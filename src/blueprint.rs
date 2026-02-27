@@ -44,4 +44,6 @@ pub struct BlockSlot {
 pub struct Blueprint {
     pub slots: Vec<BlockSlot>,
     pub level_number: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }

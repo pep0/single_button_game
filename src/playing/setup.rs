@@ -8,6 +8,14 @@ use crate::state::{GameState, LevelSequence, Score, TowerModeActive};
 use super::components::*;
 use super::resources::*;
 
+pub fn setup_block_svgs(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(BlockSvgAssets {
+        green:  asset_server.load("blocks/block_green.svg"),
+        yellow: asset_server.load("blocks/block_yellow.svg"),
+        grey:   asset_server.load("blocks/block_grey.svg"),
+    });
+}
+
 pub fn setup_playing(
     mut commands: Commands,
     score: Res<Score>,
@@ -57,9 +65,9 @@ pub fn setup_playing(
         let frozen_top = frozen_query
             .iter()
             .map(|(t, f)| t.translation.y + f.height / 2.0)
-            .fold(GROUND_Y + GROUND_HALF_HEIGHT, f32::max);
+            .fold(GROUND_Y, f32::max);
 
-        if frozen_top > GROUND_Y + GROUND_HALF_HEIGHT + 1.0 {
+        if frozen_top > GROUND_Y + 1.0 {
             let blueprint_bottom = blueprint
                 .slots
                 .iter()
@@ -79,9 +87,10 @@ pub fn setup_playing(
         PlayingEntity,
         RigidBody::Static,
         Collider::rectangle(GROUND_WIDTH, GROUND_HALF_HEIGHT * 2.0),
+        CollisionEventsEnabled,
         Mesh2d(ground_mesh),
         MeshMaterial2d(ground_material),
-        Transform::from_xyz(0.0, GROUND_Y, 0.0),
+        Transform::from_xyz(0.0, GROUND_Y - GROUND_HALF_HEIGHT, 0.0),
     ));
 
     // Spawn ghost outlines for blueprint — unique material handle per ghost so highlights work correctly
@@ -127,11 +136,42 @@ pub fn setup_playing(
         Transform::from_xyz(0.0, GROUND_Y - 60.0, 1.0),
     ));
 
+    // Heart icons (lives display) — positioned each frame by update_hearts
+    const MAX_LIVES: usize = 3;
+    for i in 0..MAX_LIVES {
+        let heart_mesh = meshes.add(Rectangle::new(18.0, 14.0));
+        let alive = i < score.lives;
+        let color = if alive {
+            Color::srgb(0.9, 0.2, 0.2)
+        } else {
+            Color::srgb(0.25, 0.25, 0.25)
+        };
+        let mat = materials.add(ColorMaterial::from_color(color));
+        commands.spawn((
+            PlayingEntity,
+            HeartIcon(i),
+            Mesh2d(heart_mesh),
+            MeshMaterial2d(mat),
+            Transform::from_xyz(-360.0 + i as f32 * 22.0, 255.0, 1.5),
+        ));
+    }
+
+    // "Evaluating..." indicator (hidden until settle phase)
+    commands.spawn((
+        PlayingEntity,
+        EvaluatingText,
+        Text2d::new(""),
+        TextFont { font_size: 22.0, ..default() },
+        TextColor(Color::srgba(0.9, 0.9, 0.3, 0.0)),
+        Transform::from_xyz(0.0, 0.0, 2.0),
+    ));
+
     // Init resources — insert/replace Blueprint so Failed/settle can read it.
     commands.insert_resource(SlotState::default());
     commands.insert_resource(ProductionState::default());
     commands.insert_resource(BuildState::default());
     commands.insert_resource(ProducedDimensions::default());
+    commands.insert_resource(ScreenShake::default());
     commands.insert_resource(blueprint);
 }
 

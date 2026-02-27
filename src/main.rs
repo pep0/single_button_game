@@ -24,6 +24,7 @@ fn main() {
             ..default()
         }))
         .add_plugins(PhysicsPlugins::default().with_length_unit(100.0))
+        .add_plugins(bevy_svg::prelude::SvgPlugin)
         .insert_resource(ClearColor(BG_COLOR))
         .insert_resource(Gravity(Vec2::new(0.0, -GRAVITY_SCALE)))
         .init_state::<GameState>()

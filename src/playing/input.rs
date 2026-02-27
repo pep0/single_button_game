@@ -1,5 +1,6 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
+use bevy_svg::prelude::Svg2d;
 
 use crate::blueprint::Blueprint;
 use crate::constants::*;
@@ -45,6 +46,7 @@ pub fn production_input(
     mut produced: ResMut<ProducedDimensions>,
     blueprint: Res<Blueprint>,
     tower_mode: Option<Res<TowerModeActive>>,
+    block_svgs: Res<BlockSvgAssets>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -112,21 +114,43 @@ pub fn production_input(
 
         // Spawn as dynamic rigid body at slot_y, it will fall with gravity
         let spawn_y = slot_y;
-        let mesh = meshes.add(Rectangle::new(produced_width, produced_height));
-        let material = materials.add(ColorMaterial::from_color(TOWER_BLOCK_COLOR));
+        let pw = produced_width;
+        let ph = produced_height;
+        let sw = target_slot.width;
+        let sh = target_slot.height;
+        let score = (pw / sw).min(sw / pw) * (ph / sh).min(sh / ph);
+        let svg_handle = if score >= 0.80 {
+            block_svgs.green.clone()
+        } else if score >= 0.60 {
+            block_svgs.yellow.clone()
+        } else {
+            block_svgs.grey.clone()
+        };
+
         let mut entity_cmd = commands.spawn((
             TowerBlock(build_state.current_index),
-            TowerBlockDims { height: produced_height },
+            TowerBlockDims { height: ph },
             BlockSettleTimer::default(),
             RigidBody::Dynamic,
-            Collider::rectangle(produced_width, produced_height),
-            Mesh2d(mesh),
-            MeshMaterial2d(material),
+            Collider::rectangle(pw, ph),
+            CollisionEventsEnabled,
             Transform::from_xyz(target_slot.x, spawn_y, 0.5),
         ));
         if tower_mode.is_none() {
             entity_cmd.insert(PlayingEntity);
         }
+        let block_entity = entity_cmd.id();
+
+        // SVG child (organic shape + baked border + score color)
+        // Offset by (-pw/2, +ph/2) to center the SVG mesh on the block origin.
+        // The SVG mesh spans [0, pw] x [0, -ph] in parent space after scaling,
+        // so this shift aligns its center with the block's physics center.
+        commands.spawn((
+            ChildOf(block_entity),
+            Svg2d(svg_handle),
+            Transform::from_xyz(-pw / 2.0, ph / 2.0, 0.0)
+                .with_scale(Vec3::new(pw / 100.0, ph / 100.0, 1.0)),
+        ));
 
         // Advance to next block immediately; only enter settle phase after last block
         build_state.current_index += 1;

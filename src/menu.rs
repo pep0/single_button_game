@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::constants::*;
-use crate::state::{cleanup, GameState};
+use crate::playing::FrozenTowerBlock;
+use crate::state::{cleanup, GameState, TowerModeActive};
 
 pub struct MenuPlugin;
 
@@ -19,11 +20,18 @@ struct MenuText;
 fn setup_menu(
     mut commands: Commands,
     mut camera_query: Query<&mut Transform, With<Camera2d>>,
+    frozen_query: Query<Entity, With<FrozenTowerBlock>>,
 ) {
     // Reset camera position
     if let Ok(mut cam_t) = camera_query.single_mut() {
         cam_t.translation.y = 0.0;
     }
+
+    // Clean up any frozen tower blocks and remove tower mode resource
+    for entity in &frozen_query {
+        commands.entity(entity).despawn();
+    }
+    commands.remove_resource::<TowerModeActive>();
 
     commands.spawn((
         MenuText,
@@ -68,10 +76,22 @@ fn setup_menu(
         TextColor(Color::srgba(0.5, 0.7, 0.9, 0.9)),
         Transform::from_xyz(0.0, -130.0, 0.0),
     ));
+
+    commands.spawn((
+        MenuText,
+        Text2d::new("T - Tower Mode"),
+        TextFont {
+            font_size: 16.0,
+            ..default()
+        },
+        TextColor(Color::srgba(0.5, 0.7, 0.9, 0.9)),
+        Transform::from_xyz(0.0, -160.0, 0.0),
+    ));
 }
 
 fn menu_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if keyboard.just_pressed(KeyCode::Space) {
@@ -79,5 +99,9 @@ fn menu_input(
     }
     if keyboard.just_pressed(KeyCode::KeyE) {
         next_state.set(GameState::Editor);
+    }
+    if keyboard.just_pressed(KeyCode::KeyT) {
+        commands.insert_resource(TowerModeActive);
+        next_state.set(GameState::Playing);
     }
 }

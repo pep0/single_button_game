@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::blueprint::Blueprint;
 use crate::constants::*;
-use crate::state::{cleanup, cleanup_shared_resources, GameState, Score};
+use crate::state::{cleanup, cleanup_shared_resources, FailureReason, GameState, Score};
 
 pub struct FailedPlugin;
 
@@ -20,7 +20,14 @@ impl Plugin for FailedPlugin {
 #[derive(Component)]
 struct FailedEntity;
 
-fn setup_failed(mut commands: Commands, score: Res<Score>, blueprint: Res<Blueprint>) {
+fn setup_failed(
+    mut commands: Commands,
+    mut score: ResMut<Score>,
+    blueprint: Res<Blueprint>,
+    reason: Option<Res<FailureReason>>,
+) {
+    score.lives = score.lives.saturating_sub(1);
+
     commands.spawn((
         FailedEntity,
         Text2d::new("Structure Collapsed!"),
@@ -43,32 +50,46 @@ fn setup_failed(mut commands: Commands, score: Res<Score>, blueprint: Res<Bluepr
         Transform::from_xyz(0.0, 20.0, 1.0),
     ));
 
-    if score.rounds_played > 0 {
-        commands.spawn((
-            FailedEntity,
-            Text2d::new(format!(
-                "Final Average: {:.0}%  ({} rounds completed)",
-                score.total_score / score.rounds_played as f32 * 100.0,
-                score.rounds_played
-            )),
-            TextFont {
-                font_size: 20.0,
-                ..default()
-            },
-            TextColor(Color::srgba(0.7, 0.7, 0.7, 0.9)),
-            Transform::from_xyz(0.0, -30.0, 1.0),
-        ));
+    if let Some(r) = reason {
+        if !r.message.is_empty() {
+            commands.spawn((
+                FailedEntity,
+                Text2d::new(r.message.clone()),
+                TextFont {
+                    font_size: 18.0,
+                    ..default()
+                },
+                TextColor(Color::srgba(0.95, 0.55, 0.3, 0.95)),
+                Transform::from_xyz(0.0, -15.0, 1.0),
+            ));
+        }
     }
 
     commands.spawn((
         FailedEntity,
-        Text2d::new("Press SPACE to try again"),
+        Text2d::new(format!("Lives remaining: {}", score.lives)),
+        TextFont {
+            font_size: 20.0,
+            ..default()
+        },
+        TextColor(Color::srgba(0.9, 0.4, 0.4, 0.95)),
+        Transform::from_xyz(0.0, -55.0, 1.0),
+    ));
+
+    let prompt = if score.lives > 0 {
+        "Press SPACE to retry"
+    } else {
+        "Game Over!  Press SPACE to return to menu"
+    };
+    commands.spawn((
+        FailedEntity,
+        Text2d::new(prompt),
         TextFont {
             font_size: 22.0,
             ..default()
         },
         TextColor(TEXT_COLOR),
-        Transform::from_xyz(0.0, -100.0, 1.0),
+        Transform::from_xyz(0.0, -120.0, 1.0),
     ));
 }
 
@@ -78,9 +99,12 @@ fn failed_input(
     mut score: ResMut<Score>,
 ) {
     if keyboard.just_pressed(KeyCode::Space) {
-        score.round = 0;
-        score.total_score = 0.0;
-        score.rounds_played = 0;
-        next_state.set(GameState::Menu);
+        if score.lives > 0 {
+            // Retry same level — keep score.round unchanged
+            next_state.set(GameState::Playing);
+        } else {
+            *score = Score::default();
+            next_state.set(GameState::Menu);
+        }
     }
 }

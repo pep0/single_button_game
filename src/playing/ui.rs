@@ -8,7 +8,9 @@ use super::components::*;
 use super::resources::*;
 
 pub fn camera_follow(
+    time: Res<Time>,
     blueprint: Res<Blueprint>,
+    mut shake: ResMut<ScreenShake>,
     block_query: Query<&Transform, With<TowerBlock>>,
     mut camera_query: Query<&mut Transform, (With<Camera2d>, Without<TowerBlock>)>,
 ) {
@@ -25,7 +27,6 @@ pub fn camera_follow(
         .fold(f32::NEG_INFINITY, f32::max);
 
     let target_top = max_ghost_y.max(max_block_y) + SPAWN_HEIGHT_ABOVE + 50.0;
-    // We want to center the view between ground and the top
     let view_center = (GROUND_Y + target_top) / 2.0;
 
     // Only move camera up if the structure gets tall enough
@@ -35,8 +36,18 @@ pub fn camera_follow(
         0.0
     };
 
+    // Lerp the logical (non-shaken) base position
+    shake.base_camera_y += (target_y - shake.base_camera_y) * 0.05;
+
+    // Compute shake offset (linear intensity so small trauma is still visible)
+    let t = time.elapsed_secs();
+    let intensity = shake.trauma;
+    let shake_x = intensity * 9.0 * (t * 11.0).sin();
+    let shake_y = intensity * 7.0 * (t * 13.0).sin();
+
     if let Ok(mut cam_t) = camera_query.single_mut() {
-        cam_t.translation.y += (target_y - cam_t.translation.y) * 0.05;
+        cam_t.translation.x = shake_x;
+        cam_t.translation.y = shake.base_camera_y + shake_y;
     }
 }
 
@@ -194,5 +205,46 @@ pub fn animate_level_complete(
         let c = color.0.to_srgba();
         color.0 = Color::srgba(c.red, c.green, c.blue, alpha);
         transform.translation.y = cam_y + 40.0;
+    }
+}
+
+pub fn update_hearts(
+    shake: Res<ScreenShake>,
+    score: Res<Score>,
+    mut heart_query: Query<(&HeartIcon, &mut Transform, &MeshMaterial2d<ColorMaterial>)>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    for (heart, mut transform, mat_handle) in &mut heart_query {
+        transform.translation.x = -360.0 + heart.0 as f32 * 22.0;
+        transform.translation.y = shake.base_camera_y + 255.0;
+        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+            mat.color = if heart.0 < score.lives {
+                Color::srgb(0.9, 0.2, 0.2)
+            } else {
+                Color::srgb(0.25, 0.25, 0.25)
+            };
+        }
+    }
+}
+
+/// Pulsing "Evaluating..." text shown while the physics settle check is running.
+pub fn update_evaluating_indicator(
+    time: Res<Time>,
+    build_state: Res<BuildState>,
+    shake: Res<ScreenShake>,
+    mut eval_query: Query<(&mut Text2d, &mut Transform, &mut TextColor), With<EvaluatingText>>,
+) {
+    let Ok((mut text, mut transform, mut color)) = eval_query.single_mut() else { return };
+
+    if build_state.waiting_for_settle && !build_state.showing_popups {
+        text.0 = "Evaluating...".to_string();
+        transform.translation.x = 0.0;
+        transform.translation.y = shake.base_camera_y - 80.0;
+        transform.translation.z = 2.0;
+        let pulse = (time.elapsed_secs() * 3.5).sin() * 0.25 + 0.75;
+        color.0 = Color::srgba(0.95, 0.95, 0.3, pulse);
+    } else {
+        text.0.clear();
+        color.0 = Color::srgba(0.95, 0.95, 0.3, 0.0);
     }
 }

@@ -4,11 +4,14 @@ use bevy::prelude::*;
 use crate::blueprint::Blueprint;
 use crate::constants::*;
 use crate::editor::EditorTestPlay;
-use crate::state::GameState;
+use crate::state::{FailureReason, GameState};
+use bevy::ecs::message::MessageWriter;
+use super::audio::BlockLanded;
 use super::components::*;
 use super::resources::*;
 
 pub fn check_settle(
+    mut commands: Commands,
     time: Res<Time>,
     mut build_state: ResMut<BuildState>,
     blueprint: Res<Blueprint>,
@@ -51,6 +54,9 @@ pub fn check_settle(
         // Criterion 1: block tilted more than 15° → toppled
         let (_, _, angle_z) = transform.rotation.to_euler(EulerRot::XYZ);
         if angle_z.abs() > 15_f32.to_radians() {
+            commands.insert_resource(FailureReason {
+                message: "Block tilted too far".to_string(),
+            });
             if testplay.is_some() {
                 next_state.set(GameState::Editor);
             } else {
@@ -63,6 +69,9 @@ pub fn check_settle(
         let dx = transform.translation.x - target.x;
         let dy = transform.translation.y - target.y;
         if (dx * dx + dy * dy).sqrt() > SLOT_MAX_WIDTH / 2.0 {
+            commands.insert_resource(FailureReason {
+                message: "Block fell off target position".to_string(),
+            });
             if testplay.is_some() {
                 next_state.set(GameState::Editor);
             } else {
@@ -92,6 +101,9 @@ pub fn check_settle(
     // Per-block 20% failure check
     for &(_, score, _, _) in &block_data {
         if score < 0.20 {
+            commands.insert_resource(FailureReason {
+                message: format!("Block too inaccurate ({:.0}%)", score * 100.0),
+            });
             if testplay.is_some() {
                 next_state.set(GameState::Editor);
             } else {
@@ -180,18 +192,49 @@ fn score_visuals(score: f32) -> (f32, f32, f32, f32) {
 }
 
 pub fn check_failure(
+    mut commands: Commands,
     block_query: Query<&Transform, With<TowerBlock>>,
     mut next_state: ResMut<NextState<GameState>>,
     testplay: Option<Res<EditorTestPlay>>,
 ) {
     for transform in &block_query {
         if transform.translation.y < FAIL_Y_THRESHOLD {
+            commands.insert_resource(FailureReason {
+                message: "Block fell off the structure".to_string(),
+            });
             if testplay.is_some() {
                 next_state.set(GameState::Editor);
             } else {
                 next_state.set(GameState::Failed);
             }
             return;
+        }
+    }
+}
+
+pub fn detect_landings(
+    time: Res<Time>,
+    mut shake: ResMut<ScreenShake>,
+    produced: Res<ProducedDimensions>,
+    mut block_query: Query<(&TowerBlock, &mut BlockSettleTimer, &LinearVelocity, &TowerBlockDims)>,
+    mut landed: MessageWriter<BlockLanded>,
+) {
+    // Decay trauma each frame
+    shake.trauma = (shake.trauma - time.delta_secs() * 2.5).max(0.0);
+
+    for (block, mut timer, vel, dims) in &mut block_query {
+        let speed = vel.0.length();
+        let vel_drop = timer.prev_speed - speed;
+        timer.prev_speed = speed;
+
+        // Landing: significant deceleration and block still moving (not drifting at rest)
+        if vel_drop > 80.0 && speed < 100.0 {
+            let i = block.0;
+            let width = if i < produced.widths.len() { produced.widths[i] } else { 80.0 };
+            let area_ratio = (width * dims.height / (SLOT_MAX_WIDTH * MAX_HEIGHT)).sqrt();
+            let trauma_add = (0.4 + area_ratio * 0.5).clamp(0.4, 0.9);
+            shake.trauma = (shake.trauma + trauma_add).min(1.0);
+            landed.write(BlockLanded { area_ratio, impact_speed: vel_drop });
         }
     }
 }

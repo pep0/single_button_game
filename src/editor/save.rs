@@ -135,6 +135,7 @@ pub fn editor_save_input(
         let blueprint = Blueprint {
             slots,
             level_number: 7,
+            name: None,
         };
 
         commands.insert_resource(EditorSnapshot { blocks: snapshot_blocks });
@@ -174,6 +175,7 @@ fn save_blocks(
     let blueprint = Blueprint {
         slots,
         level_number: 7,
+        name: None,
     };
 
     let full_path = std::path::Path::new("levels/custom").join(filename);

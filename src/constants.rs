@@ -16,7 +16,7 @@ pub const GROUND_Y: f32 = -200.0;
 pub const GROUND_HALF_HEIGHT: f32 = 10.0;
 pub const GROUND_WIDTH: f32 = 800.0;
 pub const SPAWN_HEIGHT_ABOVE: f32 = 150.0;
-pub const FAIL_Y_THRESHOLD: f32 = GROUND_Y - GROUND_HALF_HEIGHT - 10.0;
+pub const FAIL_Y_THRESHOLD: f32 = GROUND_Y - GROUND_HALF_HEIGHT * 2.0 - 10.0; // = -230
 
 // === Slot Constants ===
 pub const SLOT_MIN_WIDTH: f32 = 20.0;
