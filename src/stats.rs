@@ -1,9 +1,11 @@
 use bevy::prelude::*;
+#[cfg(not(target_arch = "wasm32"))]
 use serde::{Deserialize, Serialize};
 
 use crate::constants::*;
 use crate::state::{cleanup, GameState, Score};
 
+#[cfg(not(target_arch = "wasm32"))]
 const BEST_SCORE_PATH: &str = "best_score.json";
 
 pub struct StatsPlugin;
@@ -19,23 +21,47 @@ impl Plugin for StatsPlugin {
 #[derive(Component)]
 struct StatsEntity;
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Serialize, Deserialize, Default)]
 struct BestScore {
     average_accuracy: f32,
 }
 
 fn load_best() -> f32 {
-    std::fs::read_to_string(BEST_SCORE_PATH)
-        .ok()
-        .and_then(|s| serde_json::from_str::<BestScore>(&s).ok())
-        .map(|b| b.average_accuracy)
-        .unwrap_or(0.0)
+    #[cfg(target_arch = "wasm32")]
+    {
+        use web_sys::window;
+        return window()
+            .and_then(|w| w.local_storage().ok().flatten())
+            .and_then(|s| s.get_item("tower_stacker_best").ok().flatten())
+            .and_then(|v| v.parse::<f32>().ok())
+            .unwrap_or(0.0);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::fs::read_to_string(BEST_SCORE_PATH)
+            .ok()
+            .and_then(|s| serde_json::from_str::<BestScore>(&s).ok())
+            .map(|b| b.average_accuracy)
+            .unwrap_or(0.0)
+    }
 }
 
 fn save_best(avg: f32) {
-    let data = BestScore { average_accuracy: avg };
-    if let Ok(json) = serde_json::to_string(&data) {
-        let _ = std::fs::write(BEST_SCORE_PATH, json);
+    #[cfg(target_arch = "wasm32")]
+    {
+        use web_sys::window;
+        if let Some(storage) = window().and_then(|w| w.local_storage().ok().flatten()) {
+            let _ = storage.set_item("tower_stacker_best", &avg.to_string());
+        }
+        return;
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let data = BestScore { average_accuracy: avg };
+        if let Ok(json) = serde_json::to_string(&data) {
+            let _ = std::fs::write(BEST_SCORE_PATH, json);
+        }
     }
 }
 

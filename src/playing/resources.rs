@@ -1,13 +1,5 @@
 use bevy::prelude::*;
-use bevy_svg::prelude::Svg;
 use crate::constants::*;
-
-#[derive(Resource)]
-pub struct BlockSvgAssets {
-    pub green:  Handle<Svg>,
-    pub yellow: Handle<Svg>,
-    pub grey:   Handle<Svg>,
-}
 
 #[derive(Resource, Default)]
 pub struct ScreenShake {

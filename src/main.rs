@@ -14,17 +14,24 @@ use constants::*;
 use state::{GameState, LevelSequence, Score};
 
 fn main() {
+    #[allow(unused_mut)]
+    let mut window = Window {
+        title: "Tower Stacker".into(),
+        resolution: WindowResolution::new(800, 600),
+        ..default()
+    };
+    #[cfg(target_arch = "wasm32")]
+    {
+        window.canvas = Some("#bevy".to_string());
+        window.fit_canvas_to_parent = true;
+    }
+
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Tower Stacker".into(),
-                resolution: WindowResolution::new(800, 600),
-                ..default()
-            }),
+            primary_window: Some(window),
             ..default()
         }))
         .add_plugins(PhysicsPlugins::default().with_length_unit(100.0))
-        .add_plugins(bevy_svg::prelude::SvgPlugin)
         .insert_resource(ClearColor(BG_COLOR))
         .insert_resource(Gravity(Vec2::new(0.0, -GRAVITY_SCALE)))
         .init_state::<GameState>()

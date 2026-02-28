@@ -1,12 +1,17 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
-use bevy_svg::prelude::Svg2d;
 
 use crate::blueprint::Blueprint;
 use crate::constants::*;
 use crate::state::TowerModeActive;
 use super::components::*;
 use super::resources::*;
+
+const BLOCK_GREEN:  Color = Color::srgb(0.25, 0.75, 0.35);
+const BLOCK_YELLOW: Color = Color::srgb(0.85, 0.72, 0.15);
+const BLOCK_GREY:   Color = Color::srgb(0.45, 0.45, 0.48);
+const BLOCK_BORDER: Color = Color::srgb(0.08, 0.08, 0.10);
+const BORDER_PX: f32 = 3.0;
 
 pub fn slot_oscillation(
     time: Res<Time>,
@@ -46,7 +51,6 @@ pub fn production_input(
     mut produced: ResMut<ProducedDimensions>,
     blueprint: Res<Blueprint>,
     tower_mode: Option<Res<TowerModeActive>>,
-    block_svgs: Res<BlockSvgAssets>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -119,12 +123,12 @@ pub fn production_input(
         let sw = target_slot.width;
         let sh = target_slot.height;
         let score = (pw / sw).min(sw / pw) * (ph / sh).min(sh / ph);
-        let svg_handle = if score >= 0.80 {
-            block_svgs.green.clone()
+        let fill_color = if score >= 0.80 {
+            BLOCK_GREEN
         } else if score >= 0.60 {
-            block_svgs.yellow.clone()
+            BLOCK_YELLOW
         } else {
-            block_svgs.grey.clone()
+            BLOCK_GREY
         };
 
         let mut entity_cmd = commands.spawn((
@@ -141,15 +145,21 @@ pub fn production_input(
         }
         let block_entity = entity_cmd.id();
 
-        // SVG child (organic shape + baked border + score color)
-        // Offset by (-pw/2, +ph/2) to center the SVG mesh on the block origin.
-        // The SVG mesh spans [0, pw] x [0, -ph] in parent space after scaling,
-        // so this shift aligns its center with the block's physics center.
+        // Border rectangle (slightly larger, drawn behind)
         commands.spawn((
             ChildOf(block_entity),
-            Svg2d(svg_handle),
-            Transform::from_xyz(-pw / 2.0, ph / 2.0, 0.0)
-                .with_scale(Vec3::new(pw / 100.0, ph / 100.0, 1.0)),
+            Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(BLOCK_BORDER))),
+            Transform::from_xyz(0.0, 0.0, -0.1)
+                .with_scale(Vec3::new(pw + BORDER_PX * 2.0, ph + BORDER_PX * 2.0, 1.0)),
+        ));
+        // Fill rectangle
+        commands.spawn((
+            ChildOf(block_entity),
+            Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(fill_color))),
+            Transform::from_xyz(0.0, 0.0, 0.0)
+                .with_scale(Vec3::new(pw, ph, 1.0)),
         ));
 
         // Advance to next block immediately; only enter settle phase after last block

@@ -17,7 +17,7 @@ pub struct PlayingPlugin;
 impl Plugin for PlayingPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<audio::BlockLanded>()
-            .add_systems(OnEnter(GameState::Playing), (setup::setup_playing, audio::setup_audio, setup::setup_block_svgs))
+            .add_systems(OnEnter(GameState::Playing), (setup::setup_playing, audio::setup_audio))
             .add_systems(
                 Update,
                 (
