@@ -105,7 +105,7 @@ that is re-exported from the playing module into the menu.
 
 ### STORY-009: Fix hearts and post-level text clipping outside the visible window
 
-**status:** pending
+**status:** done
 **priority:** high
 
 #### What
@@ -164,7 +164,13 @@ accuracy scores and the level-complete confirmation that reward good play.
 - Do NOT touch the level editor screens.
 
 #### Result
-<!-- Agent fills this in when done -->
+Hearts x anchor shifted from -360 to -230 in both the initial spawn
+(`src/playing/setup.rs`) and the per-frame `update_hearts` (`src/playing/ui.rs`),
+placing all three hearts at x = -230, -208, -186 — within the ±256 visible range.
+Score popups now clamp their spawn y to `cam_y + 304` (80 px from the top edge)
+so they always start within the viewport and have room to float without clipping.
+Level-complete overlay was already camera-relative and within bounds — no change
+needed. Builds clean.
 
 ---
 

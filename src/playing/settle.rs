@@ -127,6 +127,7 @@ pub fn check_per_block_settle(
     build_state: Res<BuildState>,
     blueprint: Res<Blueprint>,
     produced: Res<ProducedDimensions>,
+    camera_query: Query<&Transform, With<Camera2d>>,
     mut block_query: Query<(
         &TowerBlock,
         &mut BlockSettleTimer,
@@ -138,6 +139,10 @@ pub fn check_per_block_settle(
     if build_state.showing_popups {
         return;
     }
+
+    let cam_y = camera_query.single().map(|t| t.translation.y).unwrap_or(0.0);
+    // Keep popups within the top 80 px of margin so they can float without clipping
+    let popup_y_max = cam_y + 384.0 - 80.0;
 
     let dt = time.delta_secs();
     for (tower_block, mut timer, transform, sleeping, vel) in &mut block_query {
@@ -164,17 +169,14 @@ pub fn check_per_block_settle(
                 * (ph / slot.height).min(slot.height / ph);
 
             let (r, g, b, font_size) = score_visuals(score);
+            let spawn_y = (transform.translation.y + ph / 2.0 + 10.0).min(popup_y_max);
             commands.spawn((
                 PlayingEntity,
                 ScorePopup { age: 0.0, base_r: r, base_g: g, base_b: b },
                 Text2d::new(format!("{:.0}%", score * 100.0)),
                 TextFont { font_size, ..default() },
                 TextColor(Color::srgba(r, g, b, 1.0)),
-                Transform::from_xyz(
-                    transform.translation.x,
-                    transform.translation.y + ph / 2.0 + 10.0,
-                    2.0,
-                ),
+                Transform::from_xyz(transform.translation.x, spawn_y, 2.0),
             ));
             timer.popup_shown = true;
         }

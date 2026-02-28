@@ -221,7 +221,7 @@ pub fn update_hearts(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for (heart, mut transform, mat_handle) in &mut heart_query {
-        transform.translation.x = -360.0 + heart.0 as f32 * 22.0;
+        transform.translation.x = -230.0 + heart.0 as f32 * 22.0;
         transform.translation.y = shake.base_camera_y + 255.0;
         if let Some(mat) = materials.get_mut(&mat_handle.0) {
             mat.color = if heart.0 < score.lives {

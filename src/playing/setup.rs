@@ -146,7 +146,7 @@ pub fn setup_playing(
             HeartIcon(i),
             Mesh2d(heart_mesh),
             MeshMaterial2d(mat),
-            Transform::from_xyz(-360.0 + i as f32 * 22.0, 255.0, 1.5),
+            Transform::from_xyz(-230.0 + i as f32 * 22.0, 255.0, 1.5),
         ));
     }
 
