@@ -17,7 +17,7 @@ fn main() {
     #[allow(unused_mut)]
     let mut window = Window {
         title: "Tower Stacker".into(),
-        resolution: WindowResolution::new(800, 600),
+        resolution: WindowResolution::new(512, 768),
         ..default()
     };
     #[cfg(target_arch = "wasm32")]
