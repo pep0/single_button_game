@@ -7,6 +7,13 @@ use crate::state::{GameState, LevelSequence, Score};
 use super::components::*;
 use super::resources::*;
 
+pub fn hud_text(level_num: usize, blueprint: &Blueprint, block: usize, total: usize) -> String {
+    match &blueprint.level_name {
+        Some(name) => format!("Level {level_num} \u{2014} {name}    Block: {block}/{total}"),
+        None       => format!("Level {level_num}    Block: {block}/{total}"),
+    }
+}
+
 pub fn camera_follow(
     time: Res<Time>,
     blueprint: Res<Blueprint>,
@@ -72,14 +79,12 @@ pub fn update_ghost_highlights(
 pub fn update_hud(
     build_state: Res<BuildState>,
     blueprint: Res<Blueprint>,
+    score: Res<Score>,
     mut hud_query: Query<&mut Text2d, With<HudText>>,
 ) {
     if let Ok(mut text) = hud_query.single_mut() {
         let block_num = (build_state.current_index + 1).min(blueprint.slots.len());
-        text.0 = format!(
-            "Level: {}    Block: {}/{}",
-            blueprint.level_number, block_num, blueprint.slots.len(),
-        );
+        text.0 = hud_text(score.round + 1, &blueprint, block_num, blueprint.slots.len());
     }
 }
 
@@ -128,11 +133,12 @@ pub fn animate_score_popups(
             .single()
             .map(|t| t.translation.y)
             .unwrap_or(0.0);
-        let is_last = score.round + 1 >= sequence.entries.len();
-        let msg = if is_last {
-            format!("Level {} Complete!  \u{2605}", blueprint.level_number)
-        } else {
-            format!("Level {} Complete!", blueprint.level_number)
+        let level_num = score.round + 1;
+        let is_last = level_num >= sequence.entries.len();
+        let star = if is_last { "  \u{2605}" } else { "" };
+        let msg = match &blueprint.level_name {
+            Some(name) => format!("Level {level_num} \u{2014} {name}  Complete!{star}"),
+            None       => format!("Level {level_num}  Complete!{star}"),
         };
         commands.spawn((
             PlayingEntity,

@@ -51,9 +51,8 @@ pub enum CanvasInput {
 #[derive(Resource)]
 pub struct CanvasState {
     pub filepath: Option<String>,
-    pub name: Option<String>,
+    pub level_name: Option<String>,
     pub slots: Vec<BlockSlot>,
-    pub level_number: usize,
     pub sequence_index: Option<usize>,
     pub prev_slots: Vec<BlockSlot>,
     pub next_slots: Vec<BlockSlot>,
@@ -72,9 +71,8 @@ impl Default for CanvasState {
     fn default() -> Self {
         Self {
             filepath: None,
-            name: None,
+            level_name: None,
             slots: Vec::new(),
-            level_number: 1,
             sequence_index: None,
             prev_slots: Vec::new(),
             next_slots: Vec::new(),

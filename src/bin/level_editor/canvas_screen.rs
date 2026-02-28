@@ -627,7 +627,7 @@ fn canvas_update_hud(
         let dirty_mark = if canvas.dirty { " *" } else { "" };
         let path_str = canvas.filepath.as_deref().unwrap_or("<unsaved>");
         let name_str = canvas
-            .name
+            .level_name
             .as_deref()
             .map(|n| format!(" \"{n}\""))
             .unwrap_or_default();
@@ -728,7 +728,7 @@ fn canvas_keyboard(
                         perform_save(&mut canvas, &path, &mut seq_state);
                     }
                     Some(CanvasInput::LevelName { buf }) => {
-                        canvas.name = if buf.is_empty() { None } else { Some(buf) };
+                        canvas.level_name = if buf.is_empty() { None } else { Some(buf) };
                         canvas.dirty = true;
                     }
                     None => {}
@@ -811,7 +811,7 @@ fn canvas_keyboard(
     // ── F2: rename level ──────────────────────────────────────────────────────
     if keyboard.just_pressed(KeyCode::F2) {
         canvas.text_input = Some(CanvasInput::LevelName {
-            buf: canvas.name.clone().unwrap_or_default(),
+            buf: canvas.level_name.clone().unwrap_or_default(),
         });
     }
 
@@ -845,8 +845,7 @@ fn perform_save(
 ) {
     match file_io::save_blueprint(
         &canvas.slots,
-        canvas.level_number,
-        canvas.name.as_deref(),
+        canvas.level_name.as_deref(),
         path,
     ) {
         Ok(()) => {
@@ -860,13 +859,13 @@ fn perform_save(
                 // New level: add it after current sequence cursor
                 let idx = seq_state.cursor + 1;
                 seq_state.entries.insert(idx, path.to_string());
-                seq_state.blueprints.insert(idx, canvas.name.clone());
+                seq_state.blueprints.insert(idx, canvas.level_name.clone());
                 canvas.sequence_index = Some(idx);
                 seq_state.cursor = idx;
             } else if let Some(si) = canvas.sequence_index {
                 // Update cached name in sequence
                 if let Some(cached) = seq_state.blueprints.get_mut(si) {
-                    *cached = canvas.name.clone();
+                    *cached = canvas.level_name.clone();
                 }
             }
         }

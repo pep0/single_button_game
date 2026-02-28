@@ -7,14 +7,7 @@ use crate::editor::EditorTestPlay;
 use crate::state::{GameState, LevelSequence, Score, TowerModeActive};
 use super::components::*;
 use super::resources::*;
-
-pub fn setup_block_svgs(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(BlockSvgAssets {
-        green:  asset_server.load("blocks/block_green.svg"),
-        yellow: asset_server.load("blocks/block_yellow.svg"),
-        grey:   asset_server.load("blocks/block_grey.svg"),
-    });
-}
+use super::ui::hud_text;
 
 pub fn setup_playing(
     mut commands: Commands,
@@ -90,7 +83,7 @@ pub fn setup_playing(
         CollisionEventsEnabled,
         Mesh2d(ground_mesh),
         MeshMaterial2d(ground_material),
-        Transform::from_xyz(0.0, GROUND_Y - GROUND_HALF_HEIGHT, 0.0),
+        Transform::from_xyz(0.0, GROUND_Y - GROUND_HALF_HEIGHT * 2.0, 0.0),
     ));
 
     // Spawn ghost outlines for blueprint — unique material handle per ghost so highlights work correctly
@@ -127,7 +120,7 @@ pub fn setup_playing(
     commands.spawn((
         PlayingEntity,
         HudText,
-        Text2d::new(format!("Level: {}    Block: 1/{}", blueprint.level_number, num_slots)),
+        Text2d::new(hud_text(score.round + 1, &blueprint, 1, num_slots)),
         TextFont {
             font_size: 20.0,
             ..default()

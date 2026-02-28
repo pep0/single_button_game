@@ -338,9 +338,8 @@ fn sequence_keyboard(
                         file_io::load_adjacent_blueprints(&state.entries, idx);
                     *canvas_state = crate::state::CanvasState {
                         filepath: Some(path),
-                        name: bp.name,
+                        level_name: bp.level_name,
                         slots: bp.slots,
-                        level_number: bp.level_number,
                         sequence_index: Some(idx),
                         prev_slots: prev,
                         next_slots: next,

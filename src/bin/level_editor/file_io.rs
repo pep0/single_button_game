@@ -2,14 +2,12 @@ use single_button_game::blueprint::{BlockSlot, Blueprint};
 
 pub fn save_blueprint(
     slots: &[BlockSlot],
-    level_number: usize,
     name: Option<&str>,
     path: &str,
 ) -> Result<(), String> {
     let blueprint = Blueprint {
         slots: slots.to_vec(),
-        level_number,
-        name: name.map(|s| s.to_string()),
+        level_name: name.map(|s| s.to_string()),
     };
 
     let full_path = std::path::Path::new("levels").join(path);
@@ -86,5 +84,5 @@ pub fn load_level_name(path: &str) -> Option<String> {
     let full = format!("levels/{}", path);
     let s = std::fs::read_to_string(&full).ok()?;
     let bp: Blueprint = serde_json::from_str(&s).ok()?;
-    bp.name
+    bp.level_name
 }

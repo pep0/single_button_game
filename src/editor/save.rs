@@ -134,8 +134,7 @@ pub fn editor_save_input(
 
         let blueprint = Blueprint {
             slots,
-            level_number: 7,
-            name: None,
+            level_name: None,
         };
 
         commands.insert_resource(EditorSnapshot { blocks: snapshot_blocks });
@@ -150,53 +149,62 @@ fn save_blocks(
     filename: &str,
     build_state: &mut EditorBuildState,
 ) {
-    let mut placed: Vec<(&Transform, &EditorBlock)> = block_query
-        .iter()
-        .map(|(_, t, b)| (t, b))
-        .collect();
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (block_query, filename);
+        build_state.status_msg = "Save not available in browser build".to_string();
+        build_state.status_timer = 4.0;
+        return;
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut placed: Vec<(&Transform, &EditorBlock)> = block_query
+            .iter()
+            .map(|(_, t, b)| (t, b))
+            .collect();
 
-    placed.sort_by(|a, b| {
-        a.0.translation
-            .y
-            .partial_cmp(&b.0.translation.y)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+        placed.sort_by(|a, b| {
+            a.0.translation
+                .y
+                .partial_cmp(&b.0.translation.y)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-    let slots: Vec<BlockSlot> = placed
-        .iter()
-        .map(|(t, b)| BlockSlot {
-            width: b.width,
-            height: b.height,
-            x: t.translation.x,
-            y: t.translation.y,
-        })
-        .collect();
+        let slots: Vec<BlockSlot> = placed
+            .iter()
+            .map(|(t, b)| BlockSlot {
+                width: b.width,
+                height: b.height,
+                x: t.translation.x,
+                y: t.translation.y,
+            })
+            .collect();
 
-    let blueprint = Blueprint {
-        slots,
-        level_number: 7,
-        name: None,
-    };
+        let blueprint = Blueprint {
+            slots,
+            level_name: None,
+        };
 
-    let full_path = std::path::Path::new("levels/custom").join(filename);
-    match serde_json::to_string_pretty(&blueprint) {
-        Ok(json) => {
-            if let Err(e) = std::fs::create_dir_all("levels/custom") {
-                build_state.status_msg = format!("Error creating directory: {e}");
-                return;
-            }
-            match std::fs::write(&full_path, json.as_bytes()) {
-                Ok(_) => {
-                    build_state.status_msg = format!("Saved \u{2192} levels/custom/{filename}");
-                    build_state.status_timer = 4.0;
+        let full_path = std::path::Path::new("levels/custom").join(filename);
+        match serde_json::to_string_pretty(&blueprint) {
+            Ok(json) => {
+                if let Err(e) = std::fs::create_dir_all("levels/custom") {
+                    build_state.status_msg = format!("Error creating directory: {e}");
+                    return;
                 }
-                Err(e) => {
-                    build_state.status_msg = format!("Error writing file: {e}");
+                match std::fs::write(&full_path, json.as_bytes()) {
+                    Ok(_) => {
+                        build_state.status_msg = format!("Saved \u{2192} levels/custom/{filename}");
+                        build_state.status_timer = 4.0;
+                    }
+                    Err(e) => {
+                        build_state.status_msg = format!("Error writing file: {e}");
+                    }
                 }
             }
-        }
-        Err(e) => {
-            build_state.status_msg = format!("Serialization error: {e}");
+            Err(e) => {
+                build_state.status_msg = format!("Serialization error: {e}");
+            }
         }
     }
 }

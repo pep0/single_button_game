@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-use crate::blueprint::Blueprint;
 use crate::constants::*;
 use crate::state::{cleanup, cleanup_shared_resources, FailureReason, GameState, Score};
 
@@ -23,7 +22,6 @@ struct FailedEntity;
 fn setup_failed(
     mut commands: Commands,
     mut score: ResMut<Score>,
-    blueprint: Res<Blueprint>,
     reason: Option<Res<FailureReason>>,
 ) {
     score.lives = score.lives.saturating_sub(1);
@@ -41,7 +39,7 @@ fn setup_failed(
 
     commands.spawn((
         FailedEntity,
-        Text2d::new(format!("Failed on Level {}", blueprint.level_number)),
+        Text2d::new(format!("Failed on Level {}", score.round + 1)),
         TextFont {
             font_size: 24.0,
             ..default()
