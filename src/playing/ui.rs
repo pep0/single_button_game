@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::text::TextBounds;
 
 use crate::blueprint::Blueprint;
 use crate::constants::*;
@@ -149,6 +150,8 @@ pub fn animate_score_popups(
                 ..default()
             },
             TextColor(Color::srgba(0.42, 0.88, 0.62, 0.0)),
+            TextBounds::new_horizontal(460.0),
+            TextLayout::new(Justify::Center, LineBreak::WordBoundary),
             Transform::from_xyz(0.0, cam_y + 40.0, 10.0),
         ));
 
