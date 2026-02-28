@@ -41,6 +41,61 @@ Why this matters. What problem it solves or what value it adds.
 
 <!-- Add new stories below this line -->
 
+### STORY-011: Wrap stats screen text so nothing clips outside the window
+
+**status:** done
+**priority:** medium
+
+#### What
+All `Text2d` entities spawned in `setup_stats` (`src/stats.rs`) should be
+constrained to the window width so long strings wrap onto a second line instead
+of being clipped at the left/right edges. The window is 512 px wide, so the safe
+wrappable width is **460 px** (25 px margin each side).
+
+Lines that can overflow at their current font sizes:
+- `"Levels Completed: {rounds_played}"` — font 26 (reported clipping)
+- `"Average Accuracy: {avg:.0}%"` — font 30
+- `"NEW BEST!  (previous: {prev_best:.0}%)"` — font 24
+- `"Press SPACE to return to menu"` — font 22
+- `"All Levels Complete!"` — font 40 (shortest string but largest font)
+
+#### Why
+On the 512×768 portrait window some stats strings extend beyond the visible
+area, cutting off information the player needs to see (number of completed
+levels, accuracy score, high-score comparison).
+
+#### Acceptance criteria
+- [ ] Every text entity in `setup_stats` has a `TextBounds` width of 460 px so
+      long strings wrap rather than overflow
+- [ ] Wrapped text is centre-aligned (consistent with the rest of the screen)
+- [ ] Vertical positions may need small adjustments if wrapping causes line-height
+      overlap between adjacent text entities — fix if needed
+- [ ] `cargo build` compiles clean
+- [ ] No other screen (menu, playing HUD, failed, editor) is touched
+
+#### Context & constraints
+- Only `src/stats.rs` `setup_stats` needs to change
+- In Bevy 0.18, add two extra components to each `commands.spawn(…)` bundle:
+  - `TextLayout::new(JustifyText::Center, LineBreak::WordBoundary)` — enables
+    word-wrap and centres each line
+  - `TextBounds::from(Vec2::new(460.0, f32::INFINITY))` — sets the wrap width
+    (infinite height so text is never clipped vertically)
+  - Verify the exact API against `bevy::text` before implementing; field names
+    may differ slightly between patch releases
+- The `"Best: {prev:.0}%"` branch (short string, font 20) is unlikely to clip
+  but should receive the same treatment for consistency
+- Do NOT change font sizes, colours, or transform positions unless vertical
+  overlap forces it
+
+#### Result
+Added `use bevy::text::TextBounds;` (not in prelude) and two shared constants
+`WRAP_WIDTH = 460.0` and `WRAP_LAYOUT = TextLayout { justify: Justify::Center,
+linebreak: LineBreak::WordBoundary }`. All six `commands.spawn(…)` bundles in
+`setup_stats` now include `TextBounds::new_horizontal(WRAP_WIDTH)` and
+`WRAP_LAYOUT`. No font sizes, colours, or positions were changed. Builds clean.
+
+---
+
 ### STORY-010: Remove tower mode and all related code
 
 **status:** pending

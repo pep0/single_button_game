@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::text::TextBounds;
 #[cfg(not(target_arch = "wasm32"))]
 use serde::{Deserialize, Serialize};
 
@@ -65,6 +66,12 @@ fn save_best(avg: f32) {
     }
 }
 
+const WRAP_WIDTH: f32 = 460.0;
+const WRAP_LAYOUT: TextLayout = TextLayout {
+    justify: Justify::Center,
+    linebreak: LineBreak::WordBoundary,
+};
+
 fn setup_stats(mut commands: Commands, score: Res<Score>) {
     commands.spawn((
         StatsEntity,
@@ -74,6 +81,8 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
             ..default()
         },
         TextColor(SLOT_COLOR),
+        TextBounds::new_horizontal(WRAP_WIDTH),
+        WRAP_LAYOUT,
         Transform::from_xyz(0.0, 150.0, 1.0),
     ));
 
@@ -85,6 +94,8 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
             ..default()
         },
         TextColor(TEXT_COLOR),
+        TextBounds::new_horizontal(WRAP_WIDTH),
+        WRAP_LAYOUT,
         Transform::from_xyz(0.0, 80.0, 1.0),
     ));
 
@@ -102,6 +113,8 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
             ..default()
         },
         TextColor(TOWER_BLOCK_COLOR),
+        TextBounds::new_horizontal(WRAP_WIDTH),
+        WRAP_LAYOUT,
         Transform::from_xyz(0.0, 20.0, 1.0),
     ));
 
@@ -118,6 +131,8 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
                 ..default()
             },
             TextColor(Color::srgba(0.38, 0.88, 0.55, 1.0)),
+            TextBounds::new_horizontal(WRAP_WIDTH),
+            WRAP_LAYOUT,
             Transform::from_xyz(0.0, -35.0, 1.0),
         ));
     } else if prev_best > 0.01 {
@@ -129,6 +144,8 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
                 ..default()
             },
             TextColor(Color::srgba(0.62, 0.62, 0.65, 0.85)),
+            TextBounds::new_horizontal(WRAP_WIDTH),
+            WRAP_LAYOUT,
             Transform::from_xyz(0.0, -35.0, 1.0),
         ));
     }
@@ -141,6 +158,8 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
             ..default()
         },
         TextColor(TEXT_COLOR),
+        TextBounds::new_horizontal(WRAP_WIDTH),
+        WRAP_LAYOUT,
         Transform::from_xyz(0.0, -100.0, 1.0),
     ));
 }
