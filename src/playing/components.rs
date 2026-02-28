@@ -35,11 +35,6 @@ pub struct ScorePopup {
 }
 
 #[derive(Component)]
-pub struct FrozenTowerBlock {
-    pub height: f32,
-}
-
-#[derive(Component)]
 pub struct TowerBlockDims {
     pub height: f32,
 }

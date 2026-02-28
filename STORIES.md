@@ -98,7 +98,7 @@ linebreak: LineBreak::WordBoundary }`. All six `commands.spawn(…)` bundles in
 
 ### STORY-010: Remove tower mode and all related code
 
-**status:** pending
+**status:** done
 **priority:** medium
 
 #### What
@@ -154,7 +154,17 @@ that is re-exported from the playing module into the menu.
 - Do NOT touch the level editor or any other game state.
 
 #### Result
-<!-- Agent fills this in when done -->
+Deleted `TowerModeActive` from `src/state.rs` and `FrozenTowerBlock` from
+`src/playing/components.rs`. Removed the `pub use components::FrozenTowerBlock`
+re-export from `src/playing/mod.rs`. Stripped `tower_mode` and `frozen_query`
+params plus the blueprint Y-offset block from `setup_playing`; stripped
+`tower_mode` and `tower_block_query` params plus the frozen-block conversion
+block from `cleanup_playing`. Removed `TowerModeActive` import and `tower_mode`
+param from `production_input` — `PlayingEntity` is now always inserted on the
+block entity. Cleaned up `src/menu.rs`: removed `FrozenTowerBlock`/
+`TowerModeActive` imports, `frozen_query` param and despawn loop, the
+`remove_resource` call, and the `T` key handler. Also dropped the now-needless
+`mut` on `blueprint` in `setup_playing`. Builds clean, no warnings.
 
 ---
 

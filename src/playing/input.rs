@@ -3,7 +3,6 @@ use bevy::prelude::*;
 
 use crate::blueprint::Blueprint;
 use crate::constants::*;
-use crate::state::TowerModeActive;
 use super::components::*;
 use super::resources::*;
 
@@ -50,7 +49,6 @@ pub fn production_input(
     mut build_state: ResMut<BuildState>,
     mut produced: ResMut<ProducedDimensions>,
     blueprint: Res<Blueprint>,
-    tower_mode: Option<Res<TowerModeActive>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -131,7 +129,8 @@ pub fn production_input(
             BLOCK_GREY
         };
 
-        let mut entity_cmd = commands.spawn((
+        let block_entity = commands.spawn((
+            PlayingEntity,
             TowerBlock(build_state.current_index),
             TowerBlockDims { height: ph },
             BlockSettleTimer::default(),
@@ -139,11 +138,7 @@ pub fn production_input(
             Collider::rectangle(pw, ph),
             CollisionEventsEnabled,
             Transform::from_xyz(target_slot.x, spawn_y, 0.5),
-        ));
-        if tower_mode.is_none() {
-            entity_cmd.insert(PlayingEntity);
-        }
-        let block_entity = entity_cmd.id();
+        )).id();
 
         // Border rectangle (slightly larger, drawn behind)
         commands.spawn((

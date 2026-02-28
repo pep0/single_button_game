@@ -6,7 +6,6 @@ mod input;
 mod settle;
 mod ui;
 
-pub use components::FrozenTowerBlock;
 pub use resources::*;
 
 use bevy::prelude::*;

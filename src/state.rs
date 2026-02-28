@@ -29,9 +29,6 @@ impl Default for Score {
     }
 }
 
-#[derive(Resource)]
-pub struct TowerModeActive;
-
 #[derive(Resource, Default)]
 pub struct FailureReason {
     pub message: String,
