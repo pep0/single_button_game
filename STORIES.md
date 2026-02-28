@@ -41,313 +41,130 @@ Why this matters. What problem it solves or what value it adds.
 
 <!-- Add new stories below this line -->
 
-### STORY-006: Inset block outline so visual and physics footprints match
+### STORY-010: Remove tower mode and all related code
 
-**status:** done
+**status:** pending
 **priority:** medium
 
 #### What
-Swap the border and fill rectangle sizes so the dark outline sits *inside* (flush
-with) the collider boundary rather than extending 3 px beyond it on every side.
-
-- Border rect: was `(pw + BORDER_PX*2) × (ph + BORDER_PX*2)`, now `pw × ph`
-- Fill rect: was `pw × ph`, now `(pw - BORDER_PX*2) × (ph - BORDER_PX*2)`
-- `Collider::rectangle(pw, ph)` is unchanged
-
-Fallback: if the inset border causes visual problems on very small blocks (e.g.
-fill disappears), remove the outline entirely by deleting the border child and
-keeping only the fill rect at full `pw × ph` size.
+Delete the "tower mode" feature entirely. Tower mode was an experimental variant
+where completed blocks persisted across levels as a growing frozen stack, and new
+levels spawned their blueprint above the existing stack. Remove every trace of it:
+the feature toggle resource, the frozen-block conversion logic, the blueprint Y-offset
+calculation, and the menu key binding.
 
 #### Why
-The current 3 px outer border makes blocks visually wider and taller than their
-collision shapes. When blocks are stacked, the overlap between two outlines creates
-a 12 px dark gap (6 px overhang per block). Inlining the border removes this
-discrepancy and makes the visual and physics footprints congruent.
+Tower mode is unused and adds complexity to the setup, cleanup, and input systems.
+Removing it simplifies the codebase and eliminates the `FrozenTowerBlock` component
+that is re-exported from the playing module into the menu.
 
 #### Acceptance criteria
-- [ ] Placed blocks show a thin dark border flush with the collider edge (no
-      border pixels outside `pw × ph`)
-- [ ] Stacking two blocks produces a ~6 px dark gap between them (3 px inset from
-      each block), not the current ~12 px gap
-- [ ] `cargo build` compiles clean
-- [ ] No regression in block physics or game flow
+- [ ] `TowerModeActive` resource is deleted from `src/state.rs`
+- [ ] `FrozenTowerBlock` component is deleted from `src/playing/components.rs`
+- [ ] `pub use components::FrozenTowerBlock;` re-export removed from `src/playing/mod.rs`
+- [ ] `setup_playing` no longer has `tower_mode` or `frozen_query` params; the
+      blueprint Y-offset block (the `if tower_mode.is_some()` section) is deleted
+- [ ] `cleanup_playing` no longer has `tower_mode` or `tower_block_query` params;
+      the `FrozenTowerBlock` conversion block is deleted
+- [ ] `production_input` in `src/playing/input.rs` no longer has `tower_mode` param;
+      the `if tower_mode.is_none()` guard is removed and `PlayingEntity` is always
+      inserted on the spawned block entity
+- [ ] `src/menu.rs` no longer imports `FrozenTowerBlock` or `TowerModeActive`; the
+      `frozen_query` param and its despawn loop are removed; the `T` key handler
+      (`KeyCode::KeyT` → insert `TowerModeActive`) is removed
+- [ ] `cargo build` compiles clean with no unused-import warnings
 
 #### Context & constraints
-- Only `src/playing/input.rs` needs to change (~lines 148-163)
-- `BORDER_PX` is 3.0 — defined in `src/constants.rs` (or nearby)
-- Do NOT change the `Collider::rectangle(pw, ph)` call
+- `src/state.rs` — `TowerModeActive` is a marker resource (`#[derive(Resource)] pub struct TowerModeActive;`)
+- `src/playing/components.rs` — `FrozenTowerBlock { height: f32 }` (~line 38)
+- `src/playing/mod.rs` — `pub use components::FrozenTowerBlock;` (~line 9)
+- `src/playing/setup.rs`:
+  - `setup_playing` params: remove `tower_mode: Option<Res<TowerModeActive>>` and
+    `frozen_query: Query<(&Transform, &FrozenTowerBlock)>`; delete the
+    `if tower_mode.is_some() { … }` blueprint-offset block (~lines 57-87)
+  - `cleanup_playing` params: remove `tower_mode: Option<Res<TowerModeActive>>` and
+    `tower_block_query: Query<(Entity, &TowerBlockDims), With<TowerBlock>>`; delete
+    the `if tower_mode.is_some() { … }` conversion block (~lines 183-194)
+- `src/playing/input.rs` — remove `use crate::state::TowerModeActive`, the
+  `tower_mode` param from `production_input`, and the `if tower_mode.is_none()`
+  guard (~line 143); the block entity must always receive `PlayingEntity`
+- `src/menu.rs` — remove `use crate::playing::FrozenTowerBlock`,
+  `TowerModeActive` from the state import, the `frozen_query` param and its
+  `for entity in &frozen_query { commands.entity(entity).despawn(); }` loop,
+  `commands.remove_resource::<TowerModeActive>()`, and the entire
+  `if keyboard.just_pressed(KeyCode::KeyT)` block in `menu_input`
+- `TowerBlock`, `TowerBlockDims`, and `BlockSettleTimer` are **not** tower-mode
+  specific — they are general playing-state components used by settle, audio, and
+  UI systems. Do NOT remove them.
+- Do NOT touch the level editor or any other game state.
 
 #### Result
-Swapped rectangle sizes in `src/playing/input.rs`: border is now `pw × ph`
-(flush with collider); fill is now `(pw - BORDER_PX*2) × (ph - BORDER_PX*2)`
-(inset by 3 px each side). Compiles clean.
+<!-- Agent fills this in when done -->
 
 ---
 
-### STORY-004: Replace level_number with level_name; use sequence counter for display
+### STORY-009: Fix hearts and post-level text clipping outside the visible window
 
-**status:** done
-**priority:** medium
-
-#### What
-Remove the `level_number` field from `Blueprint` and every level JSON. Rename the
-existing `name: Option<String>` field to `level_name: Option<String>`. Give each of
-the 10 levels in the standard sequence an interesting name. In-game, display the
-level name alongside a counter derived from `score.round + 1` (the position in the
-sequence), not from anything stored in the file.
-
-#### Why
-`level_number` is redundant — the game already has `score.round` as a sequential
-counter. Storing it in the file creates drift (several files already have
-`level_number: 1` for levels that are not level 1). Names are more evocative and
-give the player a sense of place.
-
-#### Acceptance criteria
-- [ ] `Blueprint.level_number` field is gone from `src/blueprint.rs`
-- [ ] `Blueprint.name` is renamed to `Blueprint.level_name` (stays `Option<String>`,
-      keeps `#[serde(default, skip_serializing_if = "Option::is_none")]`)
-- [ ] All 10 files in `levels/standard/` have the `"level_number"` key removed and a
-      `"level_name"` key added with an interesting name (see suggestions below)
-- [ ] HUD during play shows e.g. `"Level 3 — Crossing    Block: 1/3"` using
-      `score.round + 1` for the number and `blueprint.level_name` for the name;
-      fall back to just `"Level 3"` when `level_name` is `None`
-- [ ] "Level X Complete!" banner uses the same counter, optionally appending the name
-- [ ] "Failed on Level X" screen uses the same counter
-- [ ] Binary level editor: `save_blueprint` no longer takes or stores `level_number`
-- [ ] Binary level editor: `load_level_name` reads `blueprint.level_name`
-- [ ] `CanvasState.level_number` field removed from `src/bin/level_editor/state.rs`
-- [ ] `src/editor/save.rs` no longer sets `level_number` when constructing `Blueprint`
-- [ ] Game compiles and the HUD displays correctly for a test run
-
-#### Suggested level names (agent may improve these)
-The sequence order in `levels/sequence.json`:
-
-| File | Slots | Suggested name |
-|---|---|---|
-| `standard/1_single_block.json` | 1 | "Drop Zone" |
-| `standard/2_two_blocks.json` | 2 | "Odd Couple" |
-| `standard/01_simple_stack.json` | 3 | "The Column" |
-| `standard/02_two_posts.json` | 4 | "The Gate" |
-| `standard/03_bridge.json` | 3 | "Crossing" |
-| `standard/04_pyramid.json` | 3 | "Ziggurat" |
-| `standard/05_balance.json` | 3 | "Needle" |
-| `standard/06_arch.json` | 4 | "The Arch" |
-| `standard/tower.json` | 2 | "Watchtower" |
-| `standard/carrier.json` | 6 | "Flagship" |
-
-#### Context & constraints
-- `src/blueprint.rs` — `Blueprint` struct; `level_number` is on line ~81, `name` on ~83
-- `src/playing/ui.rs` — HUD update (`blueprint.level_number`) and level-complete
-  banner both reference `blueprint.level_number`; `score.round` is already in scope
-- `src/playing/setup.rs` — initial HUD text at line ~130 references `blueprint.level_number`
-- `src/failed.rs` — "Failed on Level {}" at line ~44
-- `src/editor/save.rs` — sets `level_number: 7` in two places (lines ~137, ~186);
-  also sets `name: None` — update `name` → `level_name`
-- `src/bin/level_editor/file_io.rs` — `save_blueprint` takes `level_number: usize`;
-  `load_level_name` reads `bp.name` — update to `bp.level_name`
-- `src/bin/level_editor/state.rs` — `CanvasState.level_number: usize` and its default
-- `src/bin/level_editor/canvas_screen.rs` — passes `canvas.level_number` to
-  `save_blueprint`; `canvas.name` should be renamed to `canvas.level_name`
-  where it maps to the Blueprint field
-- `src/bin/level_editor/sequence_screen.rs` — references `bp.level_number` when
-  loading a level into `CanvasState`
-- Custom levels in `levels/custom/` and scratch files (`asdkfj.json`, etc.) do NOT
-  need `level_name` set — `None` is fine
-- Do NOT change the sequence.json file or the file loading order
-
-#### Result
-Removed `level_number` from `Blueprint`; renamed `name` → `level_name` (Option<String>,
-same serde attrs). Updated all 10 standard level JSONs: removed `"level_number"`,
-added `"level_name"` with evocative names (Drop Zone, Odd Couple, The Column, The Gate,
-Crossing, Ziggurat, Needle, The Arch, Watchtower, Flagship). HUD now shows
-`"Level N — Name    Block: x/y"` using `score.round + 1` as the counter; falls back
-to `"Level N    Block: x/y"` when no name. Level-complete banner and failed screen
-use the same counter. Dropped unused `blueprint` param from `setup_failed`. Binary
-level editor updated throughout (`file_io`, `state`, `canvas_screen`, `sequence_screen`).
-Builds clean, no warnings.
-
----
-
-### STORY-005: Fix non-ASCII symbol rendering (em dash, star, arrow, block cursor)
-
-**status:** done
-**priority:** medium
+**status:** pending
+**priority:** high
 
 #### What
-Several Unicode symbols currently render as empty rectangles (tofu) because Bevy's
-built-in default font only covers basic ASCII. Replace every affected symbol with a
-visually equivalent ASCII sequence so no custom font is needed.
+Two related visibility bugs introduced when the window was resized to 512×768 (portrait):
 
-Affected locations:
-- `src/playing/ui.rs` — `hud_text()` uses `\u{2014}` (—) between level number and name;
-  level-complete banner uses `\u{2014}` and `\u{2605}` (★)
-- `src/bin/level_editor/sequence_screen.rs` — section title uses `\u{2014}` as a divider
-- `src/editor/ui.rs` — save-dialog cursor uses `\u{2588}` (█)
-- `src/editor/save.rs` — save-status message uses `\u{2192}` (→)
+1. **Hearts (lives display) are off-screen.** They are positioned at
+   `x = -360 + i * 22` (i = 0, 1, 2), giving x values of -360, -338, -316.
+   The window is 512 px wide, so the visible x range is **-256 to +256**. All
+   three hearts are outside the left edge and never visible.
 
-#### Why
-The HUD shows a rectangle glyph where the em dash should separate "Level 3" from
-"Crossing", and the level-complete banner shows two rectangles where the star and
-dash should be. This is confusing for players and looks broken.
-
-Root cause: all `TextFont` calls use `..default()`, which selects Bevy's embedded
-minimal font. That font contains only printable ASCII (0x20–0x7E); anything outside
-that range renders as a blank/rectangle glyph.
-
-#### Acceptance criteria
-- [ ] HUD text reads e.g. `"Level 3 - Crossing    Block: 1/3"` with no tofu rectangles
-- [ ] Level-complete banner reads e.g. `"* Level 3 Complete! *"` (or similar) with no
-      tofu rectangles
-- [ ] Binary level editor sequence-screen title has no tofu rectangles
-- [ ] In-game editor save-dialog cursor is a plain ASCII character (e.g. `|`)
-- [ ] In-game editor save-status arrow is a plain ASCII sequence (e.g. `->` or `>`)
-- [ ] No new font files are added; no `AssetServer` usage is introduced
-- [ ] Game compiles and the HUD/banners display correctly
-
-#### Context & constraints
-- `src/playing/ui.rs` — `hud_text()` function: `\u{2014}` → ` - ` (space-hyphen-space);
-  level-complete banner: `\u{2605}` → `*`, `\u{2014}` → `-`
-- `src/bin/level_editor/sequence_screen.rs` — find the `\u{2014}` divider in the title
-  string and replace with `---` or similar
-- `src/editor/ui.rs` — cursor `\u{2588}` → `|`
-- `src/editor/save.rs` — status arrow `\u{2192}` → `->`
-- Do NOT load external fonts or change `TextFont` defaults — pure string substitution only
-- Do NOT change any game logic, layout, or other text content
-
-#### Result
-Replaced all four non-ASCII sequences with ASCII equivalents:
-- `src/playing/ui.rs` `hud_text()`: `\u{2014}` → ` - `
-- `src/playing/ui.rs` level-complete banner: `\u{2014}` → ` - `, `\u{2605}` → `*`
-- `src/editor/ui.rs` save-dialog cursor: `\u{2588}` → `|`
-- `src/editor/save.rs` save-status: `\u{2192}` → `->`
-The sequence_screen had no non-ASCII divider in practice. Builds clean, no warnings.
-
----
-
-### STORY-003: Align floor position between level editor and game
-
-**status:** done
-**priority:** medium
-
-#### What
-The game's ground rectangle is misaligned relative to where the binary level editor
-treats the floor surface. This causes ghost (preview) blocks in the game to visually
-overlap or pixel-fight with the floor, and makes the two tools inconsistent.
-
-Fix: shift the game's floor mesh + collider **down** by `GROUND_HALF_HEIGHT` so its
-top edge sits at `GROUND_Y - GROUND_HALF_HEIGHT` instead of `GROUND_Y`. This creates
-a clear visual gap between the floor rect and the ghost blocks whose bottoms sit at
-`GROUND_Y`. Adjust the physics collider by the same amount so blocks still land
-correctly on the floor surface.
-
-Also fix the in-game editor (`src/editor/`) whose floor is currently centered at
-`GROUND_Y` (top edge `GROUND_Y + GROUND_HALF_HEIGHT`), which is 10 px too high
-relative to where physics blocks actually land.
+2. **Post-level score popups and the "Level X Complete!" overlay can appear
+   outside the visible area.** Score popups are spawned at the placed block's
+   world position and float upward. When the camera has scrolled up to follow a
+   tall tower, popups spawned near the top of the structure can start at or
+   above the top edge of the viewport and immediately float further off-screen.
+   The level-complete overlay is updated to `cam_y + 40.0` each frame, which
+   keeps it vertically centered on camera, but its vertical position may still
+   sit above the visible area when `cam_y` is large.
 
 #### Why
-Currently:
-- Binary level editor: floor is a 4 px line centered at `GROUND_Y`; blueprint slots
-  are drawn so block bottoms sit at ~`GROUND_Y`.
-- Game: ghost blocks are spawned with bottom at `GROUND_Y`, but the floor rect's top
-  edge is also exactly at `GROUND_Y` → they share the same edge and look like they
-  overlap.
-- In-game editor: floor rect top is at `GROUND_Y + GROUND_HALF_HEIGHT` (10 px higher
-  than in the game), so the two environments look different.
-
-Consistent rule: `GROUND_Y` is the **surface** the blocks rest on. The visual floor
-rect should sit **below** `GROUND_Y`, never touching it.
+Players cannot see how many lives they have left, and they miss the per-block
+accuracy scores and the level-complete confirmation that reward good play.
 
 #### Acceptance criteria
-- [ ] In the game, the floor rect's **top edge** is at `GROUND_Y - GROUND_HALF_HEIGHT`
-      (i.e. `Transform::from_xyz(0.0, GROUND_Y - GROUND_HALF_HEIGHT * 2.0, 0.0)`)
-- [ ] The physics collider moves with the mesh — blocks physically land at
-      `GROUND_Y - GROUND_HALF_HEIGHT` and the ghost blocks are shifted down by the
-      same amount (or the ghost block positions are updated) so they still rest on
-      the collider surface without floating or sinking
-- [ ] The in-game editor (`src/editor/setup.rs`) floor is drawn at the same
-      position as the game floor (center `GROUND_Y - GROUND_HALF_HEIGHT * 2.0`
-      or whichever offset makes its top align with `GROUND_Y`)
-- [ ] No ghost blocks visually overlap the floor rectangle
-- [ ] The binary level editor (`src/bin/level_editor/canvas_screen.rs`) floor line
-      stays at `GROUND_Y` (it is already approximately correct as a thin reference line)
-- [ ] Game compiles and blocks stack without sinking into the floor
+- [ ] All three hearts are fully visible in the top-left corner of the window
+      during play (must remain within the -256..+256 x range)
+- [ ] Hearts continue to follow the camera vertically (already done via
+      `update_hearts`)
+- [ ] Per-block score popups (e.g. "87%") are visible on screen when they
+      appear — clamp or offset their spawn y so they start within the camera's
+      current view, regardless of how high the camera has scrolled
+- [ ] The "Level X Complete!" overlay text is fully on screen for its entire
+      fade-in / hold / fade-out animation
+- [ ] `cargo build` compiles clean, no regression in game flow
 
 #### Context & constraints
-- `GROUND_Y = -200.0`, `GROUND_HALF_HEIGHT = 10.0` — defined in `src/constants.rs`
-- Game floor spawn: `src/playing/setup.rs` line ~93 —
-  `Transform::from_xyz(0.0, GROUND_Y - GROUND_HALF_HEIGHT, 0.0)` (current)
-- Ghost blocks: `src/playing/setup.rs` line ~106 —
-  `Transform::from_xyz(slot.x, slot.y, 0.1)` — `slot.y` is the block center
-- In-game editor floor: `src/editor/setup.rs` line ~30 —
-  `Transform::from_xyz(0.0, GROUND_Y, 0.0)` (current — wrong, off by GROUND_HALF_HEIGHT)
-- In-game editor landing y: `src/editor/input.rs` line ~194 —
-  `let mut landing_y = GROUND_Y + GROUND_HALF_HEIGHT + half_h;`
-- If ghost block slot positions are shifted, the blueprint files on disk do NOT need to
-  change — apply the offset only at render time, not to stored data
-- Avian physics: collider position is driven by `Transform`, so moving the mesh also
-  moves the collider automatically — no separate collider offset needed
+- **Hearts position:** `src/playing/ui.rs` `update_hearts` (and the initial
+  spawn in `src/playing/setup.rs` ~line 160).
+  Current: `transform.translation.x = -360.0 + heart.0 as f32 * 22.0;`
+  Fix: shift x right so all hearts land within the visible range. A good
+  anchor is near the top-left: x ≈ -230 for the first heart, stepping +22 per
+  heart → -230, -208, -186. Update both the spawn transform and the per-frame
+  `update_hearts` assignment.
+- **Score popup spawn position:** `src/playing/settle.rs` `check_per_block_settle`.
+  Popups are spawned at `transform.translation.y + ph / 2.0 + 10.0` in world
+  space. To keep them on-screen, clamp the spawn y to at most
+  `camera_y + VIEW_HALF_HEIGHT - 40.0` (where `VIEW_HALF_HEIGHT = 384.0` for
+  the 768 px tall window). This requires reading the camera transform in
+  `check_per_block_settle` (add `camera_query: Query<&Transform, With<Camera2d>>`
+  as a param) or passing the clamped y through a resource.
+- **Level-complete overlay:** `src/playing/ui.rs` `animate_score_popups` spawns
+  it at `cam_y + 40.0`. Verify this stays within the upper half of the screen;
+  adjust the offset if needed so the text doesn't clip at the top.
+- Window: 512×768 → half extents **256 × 384**. `GROUND_Y = -200`.
+- Do NOT change any physics, blueprint, or game-logic code — visual/UI only.
+- Do NOT touch the level editor screens.
 
 #### Result
-Root cause: in-game editor floor was centered at `GROUND_Y` (top at `GROUND_Y+10`),
-10 px higher than the game floor (top at `GROUND_Y`). Binary-editor blueprint ghosts
-touched the game floor top at the same pixel, rendering as visual overlap.
-
-Fix: moved BOTH the game floor and in-game editor floor down by one more
-`GROUND_HALF_HEIGHT` — new center `GROUND_Y - GROUND_HALF_HEIGHT * 2.0`, top at
-`GROUND_Y - GROUND_HALF_HEIGHT`. Ghost blocks from binary-editor blueprints now have
-a clean 10 px gap above the visual floor. Updated the in-game editor's `landing_y`,
-slot oscillation fold base, and default `slot_y` to the new surface
-(`GROUND_Y - GROUND_HALF_HEIGHT`) so blocks placed in the editor still land correctly.
-
-Files changed: `src/playing/setup.rs`, `src/editor/setup.rs`, `src/editor/resources.rs`,
-`src/editor/input.rs` (2 lines). No blueprint data changed.
-
----
-
-### STORY-002: Replace SVG blocks with plain rectangles
-
-**status:** done
-**priority:** medium
-
-#### What
-Remove the `bevy_svg` dependency and replace the SVG block visuals with plain Bevy
-rectangles (mesh + `ColorMaterial`). Each placed block should render as a filled
-rectangle with a visible border. The score-based color coding must be preserved:
-green (fit ≥ 0.80), yellow (fit ≥ 0.60), grey (fit < 0.60).
-
-#### Why
-The SVG blocks add a heavyweight dependency and asset pipeline complexity. Plain
-rectangles are simpler, faster to render, and easier to style going forward.
-
-#### Acceptance criteria
-- [ ] `bevy_svg` is removed from `Cargo.toml` and all `use bevy_svg::…` imports are gone
-- [ ] `SvgPlugin` is removed from the app builder in `src/main.rs`
-- [ ] `BlockSvgAssets` resource and `setup_block_svgs` system are deleted
-- [ ] Each placed block is rendered as a filled rectangle matching the block's physics size
-- [ ] Border/outline is visible on each block (e.g. a slightly larger dark rectangle behind the fill)
-- [ ] Color is green / yellow / grey based on the same score thresholds as before (≥0.80 / ≥0.60 / below)
-- [ ] Game compiles and blocks appear correctly during play
-
-#### Context & constraints
-- SVG spawning logic is in `src/playing/input.rs` — the child `Svg2d` entity and the
-  `svg_handle` selection should be replaced with a colored `Mesh2d` + `MeshMaterial2d`
-- `BlockSvgAssets` resource is defined in `src/playing/resources.rs` — delete it
-- `setup_block_svgs` is in `src/playing/setup.rs` — delete it and remove it from the
-  system schedule in `src/playing/mod.rs`
-- For the border: spawn two rectangle children — one slightly larger dark rectangle
-  (z = -0.1 relative to parent) and one fill rectangle on top, both centered on the
-  block origin; OR use a single mesh with a border shader if already available
-- The existing `meshes` and `materials` params are already present in the
-  `handle_input` system — reuse them
-- SVG assets in `assets/blocks/` can be left on disk or deleted; do not break any
-  other asset references
-
-#### Result
-Removed `bevy_svg` from `Cargo.toml`, `SvgPlugin` from `src/main.rs`, `BlockSvgAssets`
-resource and `setup_block_svgs` system from `src/playing/`. In `src/playing/input.rs`,
-replaced the single `Svg2d` child with two `Mesh2d` children per block: a dark border
-rect at z=-0.1 sized `(pw + 6) × (ph + 6)` and a fill rect at z=0 sized `pw × ph`.
-Fill color is green/yellow/grey based on the same score thresholds. Builds clean.
+<!-- Agent fills this in when done -->
 
 ---
 
