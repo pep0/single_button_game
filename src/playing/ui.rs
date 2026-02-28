@@ -68,7 +68,7 @@ pub fn update_ghost_highlights(
             if ghost.0 == build_state.current_index {
                 mat.color = GHOST_NEXT_COLOR;
             } else if ghost.0 < build_state.current_index {
-                mat.color = Color::srgba(0.3, 0.5, 0.3, 0.08);
+                mat.color = Color::srgba(0.4, 0.5, 0.65, 0.10);
             } else {
                 mat.color = GHOST_COLOR;
             }
@@ -148,7 +148,7 @@ pub fn animate_score_popups(
                 font_size: 52.0,
                 ..default()
             },
-            TextColor(Color::srgba(0.3, 0.95, 0.55, 0.0)),
+            TextColor(Color::srgba(0.42, 0.88, 0.62, 0.0)),
             Transform::from_xyz(0.0, cam_y + 40.0, 10.0),
         ));
 
@@ -225,9 +225,9 @@ pub fn update_hearts(
         transform.translation.y = shake.base_camera_y + 255.0;
         if let Some(mat) = materials.get_mut(&mat_handle.0) {
             mat.color = if heart.0 < score.lives {
-                Color::srgb(0.9, 0.2, 0.2)
+                Color::srgb(0.82, 0.30, 0.28)
             } else {
-                Color::srgb(0.25, 0.25, 0.25)
+                Color::srgb(0.28, 0.26, 0.30)
             };
         }
     }
@@ -248,9 +248,9 @@ pub fn update_evaluating_indicator(
         transform.translation.y = shake.base_camera_y - 80.0;
         transform.translation.z = 2.0;
         let pulse = (time.elapsed_secs() * 3.5).sin() * 0.25 + 0.75;
-        color.0 = Color::srgba(0.95, 0.95, 0.3, pulse);
+        color.0 = Color::srgba(0.92, 0.88, 0.42, pulse);
     } else {
         text.0.clear();
-        color.0 = Color::srgba(0.95, 0.95, 0.3, 0.0);
+        color.0 = Color::srgba(0.92, 0.88, 0.42, 0.0);
     }
 }

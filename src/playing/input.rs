@@ -7,10 +7,10 @@ use crate::state::TowerModeActive;
 use super::components::*;
 use super::resources::*;
 
-const BLOCK_GREEN:  Color = Color::srgb(0.25, 0.75, 0.35);
-const BLOCK_YELLOW: Color = Color::srgb(0.85, 0.72, 0.15);
-const BLOCK_GREY:   Color = Color::srgb(0.45, 0.45, 0.48);
-const BLOCK_BORDER: Color = Color::srgb(0.08, 0.08, 0.10);
+const BLOCK_GREEN:  Color = Color::srgb(0.38, 0.72, 0.45);
+const BLOCK_YELLOW: Color = Color::srgb(0.82, 0.70, 0.30);
+const BLOCK_GREY:   Color = Color::srgb(0.48, 0.46, 0.52);
+const BLOCK_BORDER: Color = Color::srgb(0.10, 0.10, 0.15);
 const BORDER_PX: f32 = 3.0;
 
 pub fn slot_oscillation(

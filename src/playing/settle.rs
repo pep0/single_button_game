@@ -183,11 +183,11 @@ pub fn check_per_block_settle(
 
 fn score_visuals(score: f32) -> (f32, f32, f32, f32) {
     if score >= 0.80 {
-        (0.2, 0.95, 0.55, 28.0)   // bright green, large
+        (0.38, 0.88, 0.55, 28.0)  // spring green, large
     } else if score >= 0.60 {
-        (0.95, 0.80, 0.2, 22.0)   // warm yellow, medium
+        (0.90, 0.75, 0.30, 22.0)  // warm gold, medium
     } else {
-        (0.65, 0.65, 0.65, 16.0)  // grey, small
+        (0.60, 0.58, 0.62, 16.0)  // medium grey, small
     }
 }
 

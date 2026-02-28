@@ -70,7 +70,7 @@ fn setup_failed(
             font_size: 20.0,
             ..default()
         },
-        TextColor(Color::srgba(0.9, 0.4, 0.4, 0.95)),
+        TextColor(Color::srgba(0.85, 0.42, 0.40, 0.95)),
         Transform::from_xyz(0.0, -55.0, 1.0),
     ));
 

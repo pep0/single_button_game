@@ -23,6 +23,7 @@ pub fn setup_playing(
     frozen_query: Query<(&Transform, &FrozenTowerBlock)>,
 ) {
     physics_time.unpause();
+
     // In test-play mode the Blueprint was pre-inserted by the editor's P handler; clone it.
     // In normal play, load from the sequence file.
     let mut blueprint = if testplay.is_some() {
@@ -135,9 +136,9 @@ pub fn setup_playing(
         let heart_mesh = meshes.add(Rectangle::new(18.0, 14.0));
         let alive = i < score.lives;
         let color = if alive {
-            Color::srgb(0.9, 0.2, 0.2)
+            Color::srgb(0.82, 0.30, 0.28)
         } else {
-            Color::srgb(0.25, 0.25, 0.25)
+            Color::srgb(0.28, 0.26, 0.30)
         };
         let mat = materials.add(ColorMaterial::from_color(color));
         commands.spawn((

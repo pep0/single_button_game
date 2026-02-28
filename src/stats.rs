@@ -117,7 +117,7 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
                 font_size: 24.0,
                 ..default()
             },
-            TextColor(Color::srgba(0.2, 0.95, 0.55, 1.0)),
+            TextColor(Color::srgba(0.38, 0.88, 0.55, 1.0)),
             Transform::from_xyz(0.0, -35.0, 1.0),
         ));
     } else if prev_best > 0.01 {
@@ -128,7 +128,7 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
                 font_size: 20.0,
                 ..default()
             },
-            TextColor(Color::srgba(0.65, 0.65, 0.65, 0.85)),
+            TextColor(Color::srgba(0.62, 0.62, 0.65, 0.85)),
             Transform::from_xyz(0.0, -35.0, 1.0),
         ));
     }
