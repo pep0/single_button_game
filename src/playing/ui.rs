@@ -9,7 +9,7 @@ use super::resources::*;
 
 pub fn hud_text(level_num: usize, blueprint: &Blueprint, block: usize, total: usize) -> String {
     match &blueprint.level_name {
-        Some(name) => format!("Level {level_num} \u{2014} {name}    Block: {block}/{total}"),
+        Some(name) => format!("Level {level_num} - {name}    Block: {block}/{total}"),
         None       => format!("Level {level_num}    Block: {block}/{total}"),
     }
 }
@@ -135,9 +135,9 @@ pub fn animate_score_popups(
             .unwrap_or(0.0);
         let level_num = score.round + 1;
         let is_last = level_num >= sequence.entries.len();
-        let star = if is_last { "  \u{2605}" } else { "" };
+        let star = if is_last { "  *" } else { "" };
         let msg = match &blueprint.level_name {
-            Some(name) => format!("Level {level_num} \u{2014} {name}  Complete!{star}"),
+            Some(name) => format!("Level {level_num} - {name}  Complete!{star}"),
             None       => format!("Level {level_num}  Complete!{star}"),
         };
         commands.spawn((

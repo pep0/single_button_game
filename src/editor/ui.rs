@@ -60,7 +60,7 @@ pub fn editor_update_hud(
     if let Ok(mut text) = hud_query.single_mut() {
         // Filename input mode overrides everything else.
         if let Some(ref buf) = build_state.filename_input {
-            text.0 = format!("Save as: {buf}\u{2588}");
+            text.0 = format!("Save as: {buf}|");
             return;
         }
 

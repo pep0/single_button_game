@@ -170,7 +170,7 @@ Builds clean, no warnings.
 
 ### STORY-005: Fix non-ASCII symbol rendering (em dash, star, arrow, block cursor)
 
-**status:** pending
+**status:** done
 **priority:** medium
 
 #### What
@@ -215,7 +215,12 @@ that range renders as a blank/rectangle glyph.
 - Do NOT change any game logic, layout, or other text content
 
 #### Result
-<!-- Agent fills this in when done -->
+Replaced all four non-ASCII sequences with ASCII equivalents:
+- `src/playing/ui.rs` `hud_text()`: `\u{2014}` → ` - `
+- `src/playing/ui.rs` level-complete banner: `\u{2014}` → ` - `, `\u{2605}` → `*`
+- `src/editor/ui.rs` save-dialog cursor: `\u{2588}` → `|`
+- `src/editor/save.rs` save-status: `\u{2192}` → `->`
+The sequence_screen had no non-ASCII divider in practice. Builds clean, no warnings.
 
 ---
 

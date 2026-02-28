@@ -194,7 +194,7 @@ fn save_blocks(
                 }
                 match std::fs::write(&full_path, json.as_bytes()) {
                     Ok(_) => {
-                        build_state.status_msg = format!("Saved \u{2192} levels/custom/{filename}");
+                        build_state.status_msg = format!("Saved -> levels/custom/{filename}");
                         build_state.status_timer = 4.0;
                     }
                     Err(e) => {
