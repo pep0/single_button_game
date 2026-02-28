@@ -151,7 +151,7 @@ pub fn production_input(
             Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
             MeshMaterial2d(materials.add(ColorMaterial::from_color(BLOCK_BORDER))),
             Transform::from_xyz(0.0, 0.0, -0.1)
-                .with_scale(Vec3::new(pw + BORDER_PX * 2.0, ph + BORDER_PX * 2.0, 1.0)),
+                .with_scale(Vec3::new(pw, ph, 1.0)),
         ));
         // Fill rectangle
         commands.spawn((
@@ -159,7 +159,7 @@ pub fn production_input(
             Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
             MeshMaterial2d(materials.add(ColorMaterial::from_color(fill_color))),
             Transform::from_xyz(0.0, 0.0, 0.0)
-                .with_scale(Vec3::new(pw, ph, 1.0)),
+                .with_scale(Vec3::new(pw - BORDER_PX * 2.0, ph - BORDER_PX * 2.0, 1.0)),
         ));
 
         // Advance to next block immediately; only enter settle phase after last block

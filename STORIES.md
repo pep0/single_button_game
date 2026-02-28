@@ -41,6 +41,49 @@ Why this matters. What problem it solves or what value it adds.
 
 <!-- Add new stories below this line -->
 
+### STORY-006: Inset block outline so visual and physics footprints match
+
+**status:** done
+**priority:** medium
+
+#### What
+Swap the border and fill rectangle sizes so the dark outline sits *inside* (flush
+with) the collider boundary rather than extending 3 px beyond it on every side.
+
+- Border rect: was `(pw + BORDER_PX*2) × (ph + BORDER_PX*2)`, now `pw × ph`
+- Fill rect: was `pw × ph`, now `(pw - BORDER_PX*2) × (ph - BORDER_PX*2)`
+- `Collider::rectangle(pw, ph)` is unchanged
+
+Fallback: if the inset border causes visual problems on very small blocks (e.g.
+fill disappears), remove the outline entirely by deleting the border child and
+keeping only the fill rect at full `pw × ph` size.
+
+#### Why
+The current 3 px outer border makes blocks visually wider and taller than their
+collision shapes. When blocks are stacked, the overlap between two outlines creates
+a 12 px dark gap (6 px overhang per block). Inlining the border removes this
+discrepancy and makes the visual and physics footprints congruent.
+
+#### Acceptance criteria
+- [ ] Placed blocks show a thin dark border flush with the collider edge (no
+      border pixels outside `pw × ph`)
+- [ ] Stacking two blocks produces a ~6 px dark gap between them (3 px inset from
+      each block), not the current ~12 px gap
+- [ ] `cargo build` compiles clean
+- [ ] No regression in block physics or game flow
+
+#### Context & constraints
+- Only `src/playing/input.rs` needs to change (~lines 148-163)
+- `BORDER_PX` is 3.0 — defined in `src/constants.rs` (or nearby)
+- Do NOT change the `Collider::rectangle(pw, ph)` call
+
+#### Result
+Swapped rectangle sizes in `src/playing/input.rs`: border is now `pw × ph`
+(flush with collider); fill is now `(pw - BORDER_PX*2) × (ph - BORDER_PX*2)`
+(inset by 3 px each side). Compiles clean.
+
+---
+
 ### STORY-004: Replace level_number with level_name; use sequence counter for display
 
 **status:** done
@@ -122,6 +165,57 @@ to `"Level N    Block: x/y"` when no name. Level-complete banner and failed scre
 use the same counter. Dropped unused `blueprint` param from `setup_failed`. Binary
 level editor updated throughout (`file_io`, `state`, `canvas_screen`, `sequence_screen`).
 Builds clean, no warnings.
+
+---
+
+### STORY-005: Fix non-ASCII symbol rendering (em dash, star, arrow, block cursor)
+
+**status:** pending
+**priority:** medium
+
+#### What
+Several Unicode symbols currently render as empty rectangles (tofu) because Bevy's
+built-in default font only covers basic ASCII. Replace every affected symbol with a
+visually equivalent ASCII sequence so no custom font is needed.
+
+Affected locations:
+- `src/playing/ui.rs` — `hud_text()` uses `\u{2014}` (—) between level number and name;
+  level-complete banner uses `\u{2014}` and `\u{2605}` (★)
+- `src/bin/level_editor/sequence_screen.rs` — section title uses `\u{2014}` as a divider
+- `src/editor/ui.rs` — save-dialog cursor uses `\u{2588}` (█)
+- `src/editor/save.rs` — save-status message uses `\u{2192}` (→)
+
+#### Why
+The HUD shows a rectangle glyph where the em dash should separate "Level 3" from
+"Crossing", and the level-complete banner shows two rectangles where the star and
+dash should be. This is confusing for players and looks broken.
+
+Root cause: all `TextFont` calls use `..default()`, which selects Bevy's embedded
+minimal font. That font contains only printable ASCII (0x20–0x7E); anything outside
+that range renders as a blank/rectangle glyph.
+
+#### Acceptance criteria
+- [ ] HUD text reads e.g. `"Level 3 - Crossing    Block: 1/3"` with no tofu rectangles
+- [ ] Level-complete banner reads e.g. `"* Level 3 Complete! *"` (or similar) with no
+      tofu rectangles
+- [ ] Binary level editor sequence-screen title has no tofu rectangles
+- [ ] In-game editor save-dialog cursor is a plain ASCII character (e.g. `|`)
+- [ ] In-game editor save-status arrow is a plain ASCII sequence (e.g. `->` or `>`)
+- [ ] No new font files are added; no `AssetServer` usage is introduced
+- [ ] Game compiles and the HUD/banners display correctly
+
+#### Context & constraints
+- `src/playing/ui.rs` — `hud_text()` function: `\u{2014}` → ` - ` (space-hyphen-space);
+  level-complete banner: `\u{2605}` → `*`, `\u{2014}` → `-`
+- `src/bin/level_editor/sequence_screen.rs` — find the `\u{2014}` divider in the title
+  string and replace with `---` or similar
+- `src/editor/ui.rs` — cursor `\u{2588}` → `|`
+- `src/editor/save.rs` — status arrow `\u{2192}` → `->`
+- Do NOT load external fonts or change `TextFont` defaults — pure string substitution only
+- Do NOT change any game logic, layout, or other text content
+
+#### Result
+<!-- Agent fills this in when done -->
 
 ---
 
