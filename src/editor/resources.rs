@@ -22,7 +22,7 @@ impl Default for EditorSlotState {
             current_width: SLOT_MIN_WIDTH,
             locked_width: None,
             slot_x: 0.0,
-            slot_y: GROUND_Y + GROUND_HALF_HEIGHT + SPAWN_HEIGHT_ABOVE,
+            slot_y: GROUND_Y - GROUND_HALF_HEIGHT + SPAWN_HEIGHT_ABOVE,
         }
     }
 }

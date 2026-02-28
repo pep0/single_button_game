@@ -25,7 +25,7 @@ pub fn editor_slot_oscillation(
                 .iter()
                 .map(|(_, f)| f.target_y + f.height / 2.0),
         )
-        .fold(GROUND_Y + GROUND_HALF_HEIGHT, f32::max);
+        .fold(GROUND_Y - GROUND_HALF_HEIGHT, f32::max);
     slot_state.slot_y = max_top + SPAWN_HEIGHT_ABOVE;
 
     // When locked (Space held), don't move the slot or oscillate width.
@@ -191,7 +191,7 @@ fn compute_landing_y(
     >,
 ) -> f32 {
     let half_h = produced_height / 2.0;
-    let mut landing_y = GROUND_Y + GROUND_HALF_HEIGHT + half_h;
+    let mut landing_y = GROUND_Y - GROUND_HALF_HEIGHT + half_h;
 
     for (block_t, block) in editor_blocks.iter() {
         let bx = block_t.translation.x;

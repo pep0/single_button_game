@@ -27,10 +27,10 @@ pub fn setup_editor(
         EditorEntity,
         Mesh2d(ground_mesh),
         MeshMaterial2d(ground_mat),
-        Transform::from_xyz(0.0, GROUND_Y, 0.0),
+        Transform::from_xyz(0.0, GROUND_Y - GROUND_HALF_HEIGHT * 2.0, 0.0),
     ));
 
-    let slot_y = GROUND_Y + GROUND_HALF_HEIGHT + SPAWN_HEIGHT_ABOVE;
+    let slot_y = GROUND_Y - GROUND_HALF_HEIGHT + SPAWN_HEIGHT_ABOVE;
 
     // Slot indicator
     let slot_mesh = meshes.add(Rectangle::new(1.0, 1.0));
