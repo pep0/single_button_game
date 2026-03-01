@@ -103,7 +103,7 @@ variant continues to work (uses the new variable `eye_r`). No changes to
 
 ### STORY-016: Show a smile on accurate blocks
 
-**status:** pending
+**status:** done
 **priority:** medium
 
 #### What
@@ -147,7 +147,13 @@ A real curved mouth is the single most impactful change to make faces feel expre
 - Do NOT change scoring, physics, or any other file
 
 #### Result
-<!-- Agent fills this in when done -->
+Added `mouth_y: f32` and `mouth_mask: Option<Entity>` to `BlockFace`. For green
+and grey tiers `spawn_face` spawns a 6th unit-circle child coloured with the
+matching block fill (`BLOCK_GREEN` / `BLOCK_GREY`, z+0.02 above the dark mouth).
+`update_faces` slides the mask each frame: for green it shifts up `mouth_sy * 0.75`
+exposing a bottom-arc smile; for grey it shifts down the same amount exposing a
+top-arc frown. During panic or for yellow tier the mask is scaled to zero. No
+changes to `input.rs` or any other file. Builds clean.
 
 ---
 

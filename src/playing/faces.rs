@@ -8,6 +8,10 @@ fn prand(seed: u32) -> f32 {
     ((x >> 8) & 0x00FF_FFFF) as f32 / 0x00FF_FFFFu32 as f32
 }
 
+// Fill colours duplicated from input.rs — used to tint the mouth mask.
+const BLOCK_GREEN: Color = Color::srgb(0.38, 0.72, 0.45);
+const BLOCK_GREY:  Color = Color::srgb(0.48, 0.46, 0.52);
+
 #[derive(Component)]
 pub struct BlockFace {
     pub score_tier: u8, // 0=grey, 1=yellow, 2=green
@@ -15,11 +19,13 @@ pub struct BlockFace {
     pupil_r: f32,
     mouth_w: f32,
     mouth_h: f32,
+    mouth_y: f32,       // local-space Y of mouth centre (needed for mask offset)
     left_eye: Entity,
     right_eye: Entity,
     left_pupil: Entity,
     right_pupil: Entity,
     mouth: Entity,
+    mouth_mask: Option<Entity>, // crescent mask for green smile / grey frown
 }
 
 /// Spawns face child entities on a block and returns a `BlockFace` to insert
@@ -80,17 +86,27 @@ pub fn spawn_face(
     let right_pupil = sp(dark,   eye_x - cross_x, eye_y,   0.01);
     let mouth       = sp(dark,   0.0,              mouth_y, 0.00);
 
+    // Crescent mask: a fill-coloured circle that slides over the dark mouth to
+    // leave only a bottom arc (smile) or top arc (frown) visible.
+    let mouth_mask = match score_tier {
+        2 => Some(sp(BLOCK_GREEN, 0.0, mouth_y, 0.02)),
+        0 => Some(sp(BLOCK_GREY,  0.0, mouth_y, 0.02)),
+        _ => None,
+    };
+
     BlockFace {
         score_tier,
         eye_r,
         pupil_r,
         mouth_w,
         mouth_h,
+        mouth_y,
         left_eye,
         right_eye,
         left_pupil,
         right_pupil,
         mouth,
+        mouth_mask,
     }
 }
 
@@ -139,6 +155,22 @@ pub fn update_faces(
         }
         if let Ok(mut t) = transforms.get_mut(face.mouth) {
             t.scale = Vec3::new(mouth_sx, mouth_sy, 1.0);
+        }
+
+        // Crescent mask: slide it over the dark mouth to reveal only an arc.
+        // Hidden while falling (O-mouth) or for yellow tier (no mask).
+        if let Some(mask) = face.mouth_mask {
+            if let Ok(mut t) = transforms.get_mut(mask) {
+                if falling || face.score_tier == 1 {
+                    t.scale = Vec3::ZERO;
+                } else {
+                    // Green: mask above mouth → bottom arc visible = smile
+                    // Grey:  mask below mouth → top arc visible  = frown
+                    let dy = if face.score_tier == 2 { mouth_sy * 0.75 } else { -mouth_sy * 0.75 };
+                    t.translation.y = face.mouth_y + dy;
+                    t.scale = Vec3::new(mouth_sx, mouth_sy, 1.0);
+                }
+            }
         }
     }
 }
