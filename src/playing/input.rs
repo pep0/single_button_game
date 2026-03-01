@@ -10,7 +10,10 @@ use super::resources::*;
 const BLOCK_GREEN:  Color = Color::srgb(0.38, 0.72, 0.45);
 const BLOCK_YELLOW: Color = Color::srgb(0.82, 0.70, 0.30);
 const BLOCK_GREY:   Color = Color::srgb(0.48, 0.46, 0.52);
-const BLOCK_BORDER: Color = Color::srgb(0.10, 0.10, 0.15);
+// Borders: ~60 % brightness of the matching fill hue
+const BORDER_GREEN:  Color = Color::srgb(0.22, 0.43, 0.27);
+const BORDER_YELLOW: Color = Color::srgb(0.49, 0.42, 0.18);
+const BORDER_GREY:   Color = Color::srgb(0.29, 0.28, 0.31);
 const BORDER_PX: f32 = 3.0;
 
 pub fn slot_oscillation(
@@ -123,6 +126,13 @@ pub fn production_input(
         } else {
             BLOCK_GREY
         };
+        let border_color = if score_tier == 2 {
+            BORDER_GREEN
+        } else if score_tier == 1 {
+            BORDER_YELLOW
+        } else {
+            BORDER_GREY
+        };
 
         let block_entity = commands.spawn((
             PlayingEntity,
@@ -139,7 +149,7 @@ pub fn production_input(
         commands.spawn((
             ChildOf(block_entity),
             Mesh2d(meshes.add(Rectangle::new(1.0, 1.0))),
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(BLOCK_BORDER))),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(border_color))),
             Transform::from_xyz(0.0, 0.0, -0.1)
                 .with_scale(Vec3::new(pw, ph, 1.0)),
         ));
