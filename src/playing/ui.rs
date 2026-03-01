@@ -162,6 +162,7 @@ pub fn animate_score_popups(
 
 pub fn animate_level_complete(
     time: Res<Time>,
+    keyboard: Res<ButtonInput<KeyCode>>,
     mut build_state: ResMut<BuildState>,
     mut overlay_query: Query<(&mut TextColor, &mut Transform), With<LevelCompleteOverlay>>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<LevelCompleteOverlay>)>,
@@ -175,12 +176,18 @@ pub fn animate_level_complete(
     }
 
     const FADE_IN: f32 = 0.3;
-    const HOLD: f32 = 1.5;
+    const HOLD: f32 = 0.8;
     const FADE_OUT: f32 = 0.4;
-    const TOTAL: f32 = FADE_IN + HOLD + FADE_OUT; // 2.2 s
+    const TOTAL: f32 = FADE_IN + HOLD + FADE_OUT; // 1.5 s
 
     build_state.level_complete_timer += time.delta_secs();
-    let t = build_state.level_complete_timer;
+    let mut t = build_state.level_complete_timer;
+
+    // Space skips the remaining wait
+    if keyboard.just_pressed(KeyCode::Space) {
+        t = TOTAL;
+        build_state.level_complete_timer = TOTAL;
+    }
 
     if t >= TOTAL {
         build_state.showing_level_complete = false;

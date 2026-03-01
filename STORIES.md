@@ -214,7 +214,7 @@ and `pupil2` entities are zeroed. Builds clean.
 
 ### STORY-018: Shorten post-level wait or allow Space to skip it
 
-**status:** pending
+**status:** done
 **priority:** medium
 
 #### What
@@ -248,7 +248,13 @@ delay or adding a skip makes the pacing feel responsive.
 - Do NOT touch physics, scoring, or the level editor
 
 #### Result
-<!-- Agent fills this in when done -->
+Reduced `HOLD` from 1.5 s to 0.8 s in `animate_level_complete` (`src/playing/ui.rs`),
+bringing the total overlay time from 2.2 s to 1.5 s (fade-in 0.3 + hold 0.8 +
+fade-out 0.4). Added `keyboard: Res<ButtonInput<KeyCode>>` param; if Space is
+pressed while the overlay is showing, `level_complete_timer` is immediately set to
+`TOTAL`, causing the state transition on the same frame. Skip only activates after
+`showing_level_complete` is set (i.e. all blocks settled), so it can't fire during
+the settle animation. Builds clean.
 
 ---
 
