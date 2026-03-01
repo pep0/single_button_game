@@ -1,5 +1,6 @@
 use avian2d::prelude::LinearVelocity;
 use bevy::prelude::*;
+use std::f32::consts::FRAC_PI_4;
 use super::components::{BlockSettleTimer, PlayingEntity};
 
 fn prand(seed: u32) -> f32 {
@@ -19,11 +20,13 @@ pub struct BlockFace {
     pupil_r: f32,
     mouth_w: f32,
     mouth_h: f32,
-    mouth_y: f32,       // local-space Y of mouth centre (needed for mask offset)
+    mouth_y: f32,        // local-space Y of mouth centre (needed for mask offset)
     left_eye: Entity,
     right_eye: Entity,
-    left_pupil: Entity,
+    left_pupil: Entity,  // first bar of the X (or normal round pupil)
     right_pupil: Entity,
+    left_pupil2: Entity, // second bar of the X (hidden when not tilted)
+    right_pupil2: Entity,
     mouth: Entity,
     mouth_mask: Option<Entity>, // crescent mask for green smile / grey frown
 }
@@ -80,11 +83,14 @@ pub fn spawn_face(
         )).id()
     };
 
-    let left_eye    = sp(white, -eye_x,           eye_y,   0.00);
-    let right_eye   = sp(white,  eye_x,           eye_y,   0.00);
-    let left_pupil  = sp(dark,  -eye_x + cross_x, eye_y,   0.01);
-    let right_pupil = sp(dark,   eye_x - cross_x, eye_y,   0.01);
-    let mouth       = sp(dark,   0.0,              mouth_y, 0.00);
+    let left_eye     = sp(white, -eye_x,           eye_y,   0.00);
+    let right_eye    = sp(white,  eye_x,           eye_y,   0.00);
+    let left_pupil   = sp(dark,  -eye_x + cross_x, eye_y,   0.01);
+    let right_pupil  = sp(dark,   eye_x - cross_x, eye_y,   0.01);
+    // Second bar of the X-eye (hidden unless block is tilted)
+    let left_pupil2  = sp(dark,  -eye_x + cross_x, eye_y,   0.01);
+    let right_pupil2 = sp(dark,   eye_x - cross_x, eye_y,   0.01);
+    let mouth        = sp(dark,   0.0,              mouth_y, 0.00);
 
     // Crescent mask: a fill-coloured circle that slides over the dark mouth to
     // leave only a bottom arc (smile) or top arc (frown) visible.
@@ -105,6 +111,8 @@ pub fn spawn_face(
         right_eye,
         left_pupil,
         right_pupil,
+        left_pupil2,
+        right_pupil2,
         mouth,
         mouth_mask,
     }
@@ -113,12 +121,17 @@ pub fn spawn_face(
 /// Updates eye and mouth scales every frame to show falling-panic or
 /// settled-score expressions.
 pub fn update_faces(
-    block_query: Query<(&BlockFace, &BlockSettleTimer, &LinearVelocity)>,
-    mut transforms: Query<&mut Transform>,
+    // With<BlockFace> + Without<BlockFace> make the two Transform accesses disjoint.
+    block_query: Query<(&BlockFace, &BlockSettleTimer, &LinearVelocity, &Transform), With<BlockFace>>,
+    mut transforms: Query<&mut Transform, Without<BlockFace>>,
 ) {
-    for (face, timer, vel) in &block_query {
+    for (face, timer, vel, block_tf) in &block_query {
         // Panic while block is still falling / bouncing
         let falling = timer.rest_secs < 0.35 || vel.0.length() > 60.0;
+
+        // Tilted > 25° (0.436 rad) → show X-eyes instead of normal pupils
+        let tilt = block_tf.rotation.to_euler(EulerRot::XYZ).2.abs();
+        let tilted = !falling && tilt > 0.436;
 
         let (eye_sx, eye_sy, mouth_sx, mouth_sy) = if falling {
             // Wide-open eyes, O-shaped mouth
@@ -148,9 +161,33 @@ pub fn update_faces(
                 t.scale = Vec3::new(eye_sx, eye_sy, 1.0);
             }
         }
-        for &e in &[face.left_pupil, face.right_pupil] {
-            if let Ok(mut t) = transforms.get_mut(e) {
-                t.scale = Vec3::new(face.pupil_r, face.pupil_r, 1.0);
+        if tilted {
+            // X-eyes: two flat diagonal bars per eye socket
+            let bar_sx = face.eye_r * 1.6;
+            let bar_sy = face.eye_r * 0.28;
+            for &e in &[face.left_pupil, face.right_pupil] {
+                if let Ok(mut t) = transforms.get_mut(e) {
+                    t.scale    = Vec3::new(bar_sx, bar_sy, 1.0);
+                    t.rotation = Quat::from_rotation_z(FRAC_PI_4);
+                }
+            }
+            for &e in &[face.left_pupil2, face.right_pupil2] {
+                if let Ok(mut t) = transforms.get_mut(e) {
+                    t.scale    = Vec3::new(bar_sx, bar_sy, 1.0);
+                    t.rotation = Quat::from_rotation_z(-FRAC_PI_4);
+                }
+            }
+        } else {
+            for &e in &[face.left_pupil, face.right_pupil] {
+                if let Ok(mut t) = transforms.get_mut(e) {
+                    t.scale    = Vec3::new(face.pupil_r, face.pupil_r, 1.0);
+                    t.rotation = Quat::IDENTITY;
+                }
+            }
+            for &e in &[face.left_pupil2, face.right_pupil2] {
+                if let Ok(mut t) = transforms.get_mut(e) {
+                    t.scale = Vec3::ZERO;
+                }
             }
         }
         if let Ok(mut t) = transforms.get_mut(face.mouth) {

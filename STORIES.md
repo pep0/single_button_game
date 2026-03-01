@@ -159,7 +159,7 @@ changes to `input.rs` or any other file. Builds clean.
 
 ### STORY-017: Cross out eyes when a block is tilted too far
 
-**status:** pending
+**status:** done
 **priority:** low
 
 #### What
@@ -200,7 +200,15 @@ physical state legible and funny without extra UI.
   during testing
 
 #### Result
-<!-- Agent fills this in when done -->
+Added `left_pupil2` / `right_pupil2` entity fields to `BlockFace` — a second dark
+circle per eye, spawned at the same local position as the first pupil but hidden
+(`scale = Vec3::ZERO`) by default. `update_faces` now also reads `&Transform` from
+the block entity; two queries are kept disjoint via `With<BlockFace>` /
+`Without<BlockFace>` filters to avoid mutable aliasing on `Transform`. When the
+block's z-rotation exceeds 0.436 rad (25°) and it isn't falling, both pupils per
+eye are set to a flat `1.6 × 0.28 × eye_r` bar: the first at +45°, the second at
+-45°, forming an ✕. Outside the threshold, pupils revert to round (`Quat::IDENTITY`)
+and `pupil2` entities are zeroed. Builds clean.
 
 ---
 
