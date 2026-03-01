@@ -40,38 +40,6 @@ pub fn save_sequence(entries: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-pub fn load_adjacent_blueprints(
-    entries: &[String],
-    current_index: usize,
-) -> (Vec<BlockSlot>, Vec<BlockSlot>) {
-    let load = |path: &str| -> Vec<BlockSlot> {
-        let full = format!("levels/{}", path);
-        match std::fs::read_to_string(&full) {
-            Ok(s) => match serde_json::from_str::<Blueprint>(&s) {
-                Ok(bp) => bp.slots,
-                Err(_) => Vec::new(),
-            },
-            Err(_) => Vec::new(),
-        }
-    };
-
-    let prev = if current_index > 0 {
-        entries
-            .get(current_index - 1)
-            .map(|p| load(p))
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-
-    let next = entries
-        .get(current_index + 1)
-        .map(|p| load(p))
-        .unwrap_or_default();
-
-    (prev, next)
-}
-
 pub fn load_sequence() -> Vec<String> {
     match std::fs::read_to_string("levels/sequence.json") {
         Ok(s) => serde_json::from_str(&s).unwrap_or_default(),

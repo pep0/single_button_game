@@ -178,7 +178,7 @@ top surface. Builds clean.
 
 ### STORY-024: Remove adjacent-level preview overlays from the level editor
 
-**status:** pending
+**status:** done
 **priority:** low
 
 #### What
@@ -216,7 +216,13 @@ which blocks belong to the level being edited.
 - Do NOT touch the game code or `src/playing/`
 
 #### Result
-<!-- Agent fills this in when done -->
+Removed `prev_slots`/`next_slots` fields and their `Default` initialisers from
+`CanvasState` (`state.rs`). Removed the `load_adjacent_blueprints` call and
+corresponding field assignments from `sequence_screen.rs`. Deleted the
+`load_adjacent_blueprints` function from `file_io.rs`. Removed `PREV_COLOR`,
+`NEXT_COLOR`, `OVERLAY_GAP` constants, the `OverlayBlock` component, and all
+bounding-box / overlay-spawning code from `canvas_screen.rs` (`setup_canvas`).
+No warnings. Builds clean.
 
 ---
 

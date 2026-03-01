@@ -11,14 +11,12 @@ use crate::hit_test::{self, HitResult, HANDLE_HALF_SIZE};
 use crate::state::{CanvasInput, CanvasState, EditorScreen, SequenceEditorState};
 
 // ── Colors ────────────────────────────────────────────────────────────────────
-const PREV_COLOR: Color = Color::srgba(1.0, 0.5, 0.1, 0.5);
-const NEXT_COLOR: Color = Color::srgba(0.1, 0.8, 1.0, 0.5);
 const EDIT_BLOCK_COLOR: Color = Color::srgb(0.4, 0.6, 0.9);
 const EDIT_BLOCK_SELECTED: Color = Color::srgb(0.6, 0.8, 1.0);
 const HANDLE_COLOR: Color = Color::srgb(1.0, 1.0, 1.0);
 const HANDLE_HOVERED: Color = Color::srgb(1.0, 0.8, 0.2);
-const PREVIEW_COLOR: Color = Color::srgba(0.4, 0.6, 0.9, 0.4);
-const GROUND_COLOR: Color = Color::srgb(0.3, 0.3, 0.35);
+const PREVIEW_COLOR: Color  = Color::srgba(0.4, 0.6, 0.9, 0.4);
+const GROUND_COLOR: Color   = Color::srgb(0.3, 0.3, 0.35);
 const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 const HINT_COLOR: Color = Color::srgb(0.45, 0.45, 0.45);
 const STATUS_COLOR: Color = Color::srgb(0.9, 0.9, 0.5);
@@ -35,7 +33,6 @@ fn snap(v: f32, grid: f32) -> f32 {
     (v / grid).round() * grid
 }
 const HANDLE_SIZE: f32 = 8.0;
-const OVERLAY_GAP: f32 = 50.0;
 
 // ── Components ────────────────────────────────────────────────────────────────
 #[derive(Component)]
@@ -55,9 +52,6 @@ pub struct ResizeHandle {
     pub position: HandlePosition,
     pub slot_index: usize,
 }
-
-#[derive(Component)]
-pub struct OverlayBlock;
 
 #[derive(Component)]
 pub struct PreviewBlock;
@@ -201,56 +195,6 @@ fn setup_canvas(
         Transform::from_xyz(0.0, 0.0, 9.0),
         Visibility::Hidden,
     ));
-
-    // Compute bounding box of current level (fall back to GROUND_Y if empty)
-    let current_bottom = state.slots.iter()
-        .map(|s| s.y - s.height / 2.0)
-        .fold(GROUND_Y, f32::min);
-    let current_top = state.slots.iter()
-        .map(|s| s.y + s.height / 2.0)
-        .fold(GROUND_Y, f32::max);
-
-    // Prev level: align its top edge to (current_bottom - OVERLAY_GAP)
-    let prev_y_offset = if state.prev_slots.is_empty() {
-        0.0
-    } else {
-        let prev_top = state.prev_slots.iter()
-            .map(|s| s.y + s.height / 2.0)
-            .fold(f32::NEG_INFINITY, f32::max);
-        current_bottom - OVERLAY_GAP - prev_top
-    };
-
-    // Next level: align its bottom edge to (current_top + OVERLAY_GAP)
-    let next_y_offset = if state.next_slots.is_empty() {
-        0.0
-    } else {
-        let next_bottom = state.next_slots.iter()
-            .map(|s| s.y - s.height / 2.0)
-            .fold(f32::INFINITY, f32::min);
-        current_top + OVERLAY_GAP - next_bottom
-    };
-
-    // Prev-level overlays — positioned just below current level
-    for slot in &state.prev_slots {
-        commands.spawn((
-            CanvasEntity,
-            OverlayBlock,
-            Mesh2d(meshes.add(Rectangle::new(slot.width, slot.height))),
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(PREV_COLOR))),
-            Transform::from_xyz(slot.x, slot.y + prev_y_offset, 0.1),
-        ));
-    }
-
-    // Next-level overlays — positioned just above current level
-    for slot in &state.next_slots {
-        commands.spawn((
-            CanvasEntity,
-            OverlayBlock,
-            Mesh2d(meshes.add(Rectangle::new(slot.width, slot.height))),
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(NEXT_COLOR))),
-            Transform::from_xyz(slot.x, slot.y + next_y_offset, 0.1),
-        ));
-    }
 
     // Initial edit blocks
     for (i, slot) in state.slots.iter().enumerate() {

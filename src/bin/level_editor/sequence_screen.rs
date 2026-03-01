@@ -334,15 +334,11 @@ fn sequence_keyboard(
         match std::fs::read_to_string(&full) {
             Ok(s) => match serde_json::from_str::<single_button_game::blueprint::Blueprint>(&s) {
                 Ok(bp) => {
-                    let (prev, next) =
-                        file_io::load_adjacent_blueprints(&state.entries, idx);
                     *canvas_state = crate::state::CanvasState {
                         filepath: Some(path),
                         level_name: bp.level_name,
                         slots: bp.slots,
                         sequence_index: Some(idx),
-                        prev_slots: prev,
-                        next_slots: next,
                         ..Default::default()
                     };
                     next_screen.set(EditorScreen::Canvas);
