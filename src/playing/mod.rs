@@ -1,5 +1,7 @@
 mod audio;
 mod components;
+mod faces;
+mod particles;
 mod resources;
 mod setup;
 mod input;
@@ -41,6 +43,8 @@ impl Plugin for PlayingPlugin {
                     ui::animate_level_complete,
                     ui::update_evaluating_indicator,
                     ui::update_hearts,
+                    particles::tick_particles,
+                    faces::update_faces,
                 )
                     .run_if(in_state(GameState::Playing)),
             )

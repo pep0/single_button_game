@@ -41,6 +41,197 @@ Why this matters. What problem it solves or what value it adds.
 
 <!-- Add new stories below this line -->
 
+### STORY-014: Block faces — eyes and mouth that react to score and physics
+
+**status:** done
+**priority:** medium
+
+#### What
+Each placed block gets a procedurally generated face (two eyes + a mouth) drawn
+as small `Mesh2d` shapes (circles/ellipses via rectangles). The face expression
+is determined by the block's score and changes when the block is falling.
+
+**Expression rules:**
+| Situation | Eyes | Mouth |
+|---|---|---|
+| Score ≥ 0.80 (green) | Normal round, wide apart | Big arc smile |
+| Score 0.60–0.79 (yellow) | Slightly squinted | Flat or small smile |
+| Score < 0.60 (grey) | Half-closed / droopy | Downward arc frown |
+| Falling / not yet settled | Wide open (panic) | Open oval "O" mouth |
+| Crossed eyes variant | One eye shifted inward | Any mouth |
+
+**Random variation:** Eye spacing, pupil offset, and mouth curve are seeded
+randomly per block so no two blocks look identical.
+
+**Extra ideas to consider implementing:**
+- Eyebrows: two thin rectangles above the eyes, angle changes with expression
+- Sweat drop: a small teardrop shape on the side for the grey/bad-score block
+- Stars/spirals above a block that lands very badly (score < 0.40)
+- Pupils track the direction of gravity / velocity while falling
+
+#### Why
+Personality makes the blocks feel alive and gives the player emotional feedback
+about how well they're doing — without adding any extra text.
+
+#### Acceptance criteria
+- [ ] Every placed block has two eyes and a mouth spawned as `Mesh2d` children
+- [ ] Expression matches the score tier (green/yellow/grey)
+- [ ] Face changes to "panic" expression while the block is still falling
+      (detect via `RigidBody` linear velocity or a `BlockSettleTimer`)
+- [ ] Random variation: no two blocks have identical faces
+- [ ] Faces scale correctly with the block (use relative child transforms)
+- [ ] `cargo build` compiles clean
+
+#### Context & constraints
+- Relevant file: `src/playing/input.rs` — block entity is spawned in `production_input`
+- `BlockSettleTimer` in `src/playing/components.rs` tracks settling; use it to
+  detect "still falling" state
+- Keep face meshes as children of the block entity so they move/rotate with it
+- Use `Mesh2d` + `ColorMaterial` (same pattern as existing border/fill children)
+- Face z-offset: `0.2` above the fill rectangle (which is at z=0.0 relative to block)
+- Do NOT modify physics, scoring, or any other system
+
+#### Result
+Created `src/playing/faces.rs` with `BlockFace` component, `spawn_face` helper,
+and `update_faces` system. Each spawned block gets 5 child unit-circle entities
+(left/right eye white, left/right pupil dark, mouth dark) stored by entity ID
+in `BlockFace`. `update_faces` runs every frame and sets scales to match the
+current expression:
+
+- **Falling / panic** (`rest_secs < 0.35` or `speed > 60`): wide-open eyes,
+  tall O-shaped mouth.
+- **Green (≥ 0.80)**: normal round eyes, wide flat grin.
+- **Yellow (0.60–0.79)**: slightly squinted eyes, smaller smile.
+- **Grey (< 0.60)**: droopy (very flattened) eyes, narrow flat mouth.
+
+~20 % of blocks get crossed eyes (inner pupil offset). Eye spacing has slight
+random variation per block. All face entities tagged `PlayingEntity` so they
+clean up with the rest. Registered `faces::update_faces` in the UI update
+batch. Builds clean.
+
+---
+
+### STORY-013: Particle effects — smoke on block landing, dust on impact
+
+**status:** done
+**priority:** medium
+
+#### What
+Add simple particle effects triggered by game events. Start with **landing smoke**
+when a block settles, then consider the extras below.
+
+**Effects to implement:**
+
+1. **Landing smoke** (required): When a block's `BlockSettleTimer` completes
+   (block is considered settled), burst 6–10 small grey/white circles outward
+   from the block's bottom edge. Each particle: random direction (mostly
+   sideways/downward), random size (4–10 px), fades out over 0.4–0.8 s,
+   drifts with slight upward float. Use `Mesh2d` circles.
+
+2. **Impact flash** (optional): A brief white flash ring that expands then fades
+   at the moment of first collision (use `CollisionEventsEnabled` which is
+   already on block entities).
+
+3. **Score sparkles** (optional): On a green (≥ 0.80) score, emit 4–6 small
+   yellow/gold dots that float upward and fade, similar to the score popup.
+
+4. **Dust on bad landing** (optional): On grey (< 0.60) score, a few dark
+   particles fall downward.
+
+**Extra ideas:**
+- Trailing particles while the block is falling (subtle, low opacity)
+- Ground puff when the first block lands on the ground
+
+#### Why
+Juice. Particle feedback makes impacts feel satisfying and communicates game
+events viscerally without UI.
+
+#### Acceptance criteria
+- [ ] Landing smoke burst spawns when a block settles (after `BlockSettleTimer`)
+- [ ] Particles fade out and despawn automatically (no memory leak)
+- [ ] Effect does not interfere with physics or game logic
+- [ ] `cargo build` compiles clean
+- [ ] No significant frame-rate drop (keep total live particle count < 60)
+
+#### Context & constraints
+- Particle entities should have `PlayingEntity` so they're cleaned up on level end
+- Each particle: `Mesh2d` circle + `ColorMaterial`, `Transform`, and a custom
+  `Particle { velocity: Vec2, lifetime: f32, age: f32 }` component
+- Add a `tick_particles` system in `src/playing/` that moves particles each frame
+  and despawns those whose `age >= lifetime`
+- Settle detection: look at `src/playing/settle.rs` — the per-block settle check
+  fires an event or transitions state; hook into that moment
+- Do NOT use any external particle crate — keep it in pure Bevy `Mesh2d`
+
+#### Result
+Created `src/playing/particles.rs` with `Particle` component, `prand` helper,
+`spawn_smoke_burst`, and `tick_particles`. Each settled block emits 8 grey
+circle particles from its bottom edge: spread across the block width, velocity
+fans outward with slight upward float, fades alpha to 0 over 0.45–0.9 s.
+Smoke triggers in `check_per_block_settle` at 0.4 s of rest (same as score
+popup). All particles tagged `PlayingEntity` so they're cleaned up on level
+exit. Registered `particles::tick_particles` in the UI update batch. Builds clean.
+
+---
+
+### STORY-012: Switch block texture to PNG with transparent background and correct corner clamping
+
+**status:** done
+**priority:** high
+
+#### What
+The textured blocks currently load `assets/blocks/green_block.jpg`. Two problems:
+
+1. **No transparency support.** JPEG has no alpha channel, so the block renders
+   with a solid rectangle behind the image instead of showing whatever is
+   underneath (e.g. the ghost outlines). Switch to `assets/images/single_block.png`,
+   which is a PNG and can carry a transparent background.
+
+2. **Corners must not scale.** With 9-slice scaling the `max_corner_scale` field
+   caps how much corners can shrink when the block is smaller than 2 × border.
+   Verify the `SLICE_BORDER` constant matches the actual corner region size in
+   `single_block.png` and that `max_corner_scale: 1.0` is set, so corners are
+   always rendered at 1:1 pixel size.
+
+#### Why
+A JPEG block texture leaves an ugly opaque rectangle over ghost outlines and other
+visual layers. The PNG with transparency gives a clean look. Incorrect corner scaling
+makes the decorative border art (rounded corners, rivets, etc.) stretch or squash.
+
+#### Acceptance criteria
+- [ ] Block texture path changed from `"blocks/green_block.jpg"` to
+      `"images/single_block.png"` in `src/playing/input.rs` (both the
+      production-rect spawn and the placed-block child sprite)
+- [ ] `SLICE_BORDER` value matches the actual corner region in `single_block.png`
+      (measure the image; update the constant if needed)
+- [ ] `max_corner_scale: 1.0` is set on both `TextureSlicer` instances so
+      corners never scale up or down
+- [ ] The `"jpeg"` Bevy feature added in the previous story can be removed from
+      `Cargo.toml` if no other asset uses JPEG — remove it to keep the binary lean
+- [ ] `cargo build` compiles clean
+- [ ] In-game blocks show the PNG texture with transparent areas visible through
+      the block edges, and corners look crisp at any block size
+
+#### Context & constraints
+- Relevant file: `src/playing/input.rs` — two `asset_server.load(…)` calls and
+  the `SLICE_BORDER` constant at the top of the file
+- `Cargo.toml` — `bevy` features list; remove `"jpeg"` if unused
+- Asset: `assets/images/single_block.png` — inspect the image to confirm the
+  corner region size before setting `SLICE_BORDER`
+- `max_corner_scale: 1.0` means "never scale corners beyond their natural
+  pixel size"; this is already in the code but double-check it is present on
+  both spawns
+- Do NOT change game logic, physics, scoring, or any other visual system
+
+#### Result
+Switched both `asset_server.load(…)` calls in `src/playing/input.rs` from
+`"blocks/green_block.jpg"` to `"images/single_block.png"`. Updated `SLICE_BORDER`
+from 34.0 to 40.0 to match the corner art extent in the new 566×150 RGBA PNG
+(rounded corners + hatching extend ~40 px from each edge). Removed `"jpeg"` from
+Bevy's feature list in `Cargo.toml` since no asset requires it anymore.
+`max_corner_scale: 1.0` was already set on both `TextureSlicer` instances.
+Builds clean.
+
 ### STORY-011: Wrap stats screen text so nothing clips outside the window
 
 **status:** done

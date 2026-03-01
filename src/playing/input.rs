@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use crate::blueprint::Blueprint;
 use crate::constants::*;
 use super::components::*;
+use super::faces;
 use super::resources::*;
 
 const BLOCK_GREEN:  Color = Color::srgb(0.38, 0.72, 0.45);
@@ -32,7 +33,6 @@ pub fn slot_oscillation(
 
     if let Ok(mut transform) = slot_query.single_mut() {
         transform.scale.x = slot_state.current_width;
-        // Position slot above current target block
         if build_state.current_index < blueprint.slots.len() {
             let target = &blueprint.slots[build_state.current_index];
             transform.translation.x = target.x;
@@ -55,11 +55,9 @@ pub fn production_input(
     mut prod_query: Query<(Entity, &mut Transform), With<ProductionRect>>,
     slot_query: Query<&Transform, (With<SlotIndicator>, Without<ProductionRect>)>,
 ) {
-    // Don't allow input during final settle phase
     if build_state.waiting_for_settle {
         return;
     }
-
     if build_state.current_index >= blueprint.slots.len() {
         return;
     }
@@ -72,12 +70,10 @@ pub fn production_input(
     let width = slot_state.locked_width.unwrap_or(slot_state.current_width);
 
     if keyboard.just_pressed(KeyCode::Space) && !production.is_producing {
-        // Lock the slot width
         slot_state.locked_width = Some(slot_state.current_width);
         production.is_producing = true;
         production.current_height = 2.0;
 
-        // Spawn production rectangle
         let mesh = meshes.add(Rectangle::new(1.0, 1.0));
         let material = materials.add(ColorMaterial::from_color(PRODUCTION_COLOR));
         commands.spawn((
@@ -109,21 +105,20 @@ pub fn production_input(
         produced.widths.push(produced_width);
         produced.heights.push(produced_height);
 
-        // Remove the production rect, spawn a dynamic rigid body
         if let Ok((entity, _)) = prod_query.single_mut() {
             commands.entity(entity).despawn();
         }
 
-        // Spawn as dynamic rigid body at slot_y, it will fall with gravity
         let spawn_y = slot_y;
         let pw = produced_width;
         let ph = produced_height;
         let sw = target_slot.width;
         let sh = target_slot.height;
         let score = (pw / sw).min(sw / pw) * (ph / sh).min(sh / ph);
-        let fill_color = if score >= 0.80 {
+        let score_tier: u8 = if score >= 0.80 { 2 } else if score >= 0.60 { 1 } else { 0 };
+        let fill_color = if score_tier == 2 {
             BLOCK_GREEN
-        } else if score >= 0.60 {
+        } else if score_tier == 1 {
             BLOCK_YELLOW
         } else {
             BLOCK_GREY
@@ -157,7 +152,14 @@ pub fn production_input(
                 .with_scale(Vec3::new(pw - BORDER_PX * 2.0, ph - BORDER_PX * 2.0, 1.0)),
         ));
 
-        // Advance to next block immediately; only enter settle phase after last block
+        // Face
+        let face = faces::spawn_face(
+            &mut commands, &mut meshes, &mut materials,
+            block_entity, pw, ph, score_tier,
+            build_state.current_index as u32,
+        );
+        commands.entity(block_entity).insert(face);
+
         build_state.current_index += 1;
         if build_state.current_index >= blueprint.slots.len() {
             build_state.waiting_for_settle = true;
@@ -165,7 +167,6 @@ pub fn production_input(
             build_state.stability_window = 0.0;
         }
 
-        // Unlock the slot
         slot_state.locked_width = None;
         production.current_height = 0.0;
     }
