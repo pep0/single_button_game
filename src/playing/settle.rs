@@ -8,6 +8,7 @@ use crate::state::{FailureReason, GameState};
 use bevy::ecs::message::MessageWriter;
 use super::audio::BlockLanded;
 use super::components::*;
+use super::particles;
 use super::resources::*;
 
 pub fn check_settle(
@@ -216,15 +217,18 @@ pub fn check_failure(
 
 pub fn detect_landings(
     time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     mut shake: ResMut<ScreenShake>,
     produced: Res<ProducedDimensions>,
-    mut block_query: Query<(&TowerBlock, &mut BlockSettleTimer, &LinearVelocity, &TowerBlockDims)>,
+    mut block_query: Query<(&TowerBlock, &mut BlockSettleTimer, &LinearVelocity, &TowerBlockDims, &Transform)>,
     mut landed: MessageWriter<BlockLanded>,
 ) {
     // Decay trauma each frame
     shake.trauma = (shake.trauma - time.delta_secs() * 2.5).max(0.0);
 
-    for (block, mut timer, vel, dims) in &mut block_query {
+    for (block, mut timer, vel, dims, transform) in &mut block_query {
         let speed = vel.0.length();
         let vel_drop = timer.prev_speed - speed;
         timer.prev_speed = speed;
@@ -237,6 +241,15 @@ pub fn detect_landings(
             let trauma_add = (0.4 + area_ratio * 0.5).clamp(0.4, 0.9);
             shake.trauma = (shake.trauma + trauma_add).min(1.0);
             landed.write(BlockLanded { area_ratio, impact_speed: vel_drop });
+            particles::spawn_smoke_burst(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                transform.translation.x,
+                transform.translation.y - dims.height / 2.0,
+                width,
+                block.0 as u32,
+            );
         }
     }
 }
