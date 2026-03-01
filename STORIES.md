@@ -83,7 +83,7 @@ are restored to `(eye_sx, eye_sy, 1.0)` as before. No other changes. Builds clea
 
 ### STORY-020: Idle animations — blinking and looking around
 
-**status:** pending
+**status:** done
 **priority:** medium
 
 #### What
@@ -146,7 +146,17 @@ living characters reacting to their situation.
 - Do NOT touch any file other than `src/playing/faces.rs`
 
 #### Result
-<!-- Agent fills this in when done -->
+Added 14 new fields to `BlockFace`: `seed`, base pupil positions (`left/right_pupil_x/y`),
+blink state (`blink_timer`, `blink_age`, `blink_count`), and look-around state
+(`look_timer`, `look_duration`, `look_age`, `look_dx`, `look_dy`, `look_count`).
+`spawn_face` initialises timers with staggered values via `prand(seed+30/31)` so
+blocks don't blink or glance in sync. `update_faces` gained `time: Res<Time>` and
+`mut block_query`. Each frame when `!falling && !tilted`: blink timer counts down,
+triggers a 0.12 s squint (`eye_sy * 0.08`), then restarts with a new `prand`
+interval (2–5 s); look timer counts down, picks a random `±eye_r * 0.45` offset,
+holds for 0.4–0.8 s, returns to centre, waits 3–7 s, repeats. Offset is applied
+to pupil entity `translation.x/y` each frame relative to stored base positions.
+All animations reset when block falls or tilts. Builds clean.
 
 ---
 
