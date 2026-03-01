@@ -135,7 +135,7 @@ plus a small "game frame" text label at the top-left corner. All tagged
 
 ### STORY-023: Fix floor position in level editor to match the game
 
-**status:** pending
+**status:** done
 **priority:** medium
 
 #### What
@@ -169,7 +169,10 @@ exactly on the ground surface, matching what they see in play.
 - Do NOT touch game code or the sequence screen
 
 #### Result
-<!-- Agent fills this in when done -->
+Added `GROUND_HALF_HEIGHT` to the constants import in `canvas_screen.rs`.
+Changed the ground line spawn from `GROUND_Y` (−200) to
+`GROUND_Y − GROUND_HALF_HEIGHT` (−210), matching the game's physics ground
+top surface. Builds clean.
 
 ---
 

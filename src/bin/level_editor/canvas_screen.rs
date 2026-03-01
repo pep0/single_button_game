@@ -3,7 +3,7 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
 use bevy::prelude::*;
 use single_button_game::blueprint::BlockSlot;
-use single_button_game::constants::{GROUND_Y, SLOT_MAX_WIDTH};
+use single_button_game::constants::{GROUND_HALF_HEIGHT, GROUND_Y, SLOT_MAX_WIDTH};
 
 use crate::drag::{DragMode, DragState, HandlePosition};
 use crate::file_io;
@@ -117,7 +117,7 @@ fn setup_canvas(
         CanvasEntity,
         Mesh2d(meshes.add(Rectangle::new(GROUND_WIDTH, 4.0))),
         MeshMaterial2d(materials.add(ColorMaterial::from_color(GROUND_COLOR))),
-        Transform::from_xyz(0.0, GROUND_Y, 0.0),
+        Transform::from_xyz(0.0, GROUND_Y - GROUND_HALF_HEIGHT, 0.0),
     ));
 
     // Game-frame outline: four thin rects at the 512×768 window boundary
