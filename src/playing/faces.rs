@@ -35,14 +35,22 @@ pub fn spawn_face(
     seed: u32,
 ) -> BlockFace {
     let face_unit = ph.min(pw).min(52.0).max(12.0);
-    let eye_r   = face_unit * 0.115;
+
+    // Random eye size: ±~25 % band around baseline
+    let eye_r   = face_unit * (0.09 + prand(seed.wrapping_add(20)) * 0.05);
     let pupil_r = eye_r * 0.55;
-    let mouth_w = face_unit * 0.22;
+
+    // Random mouth dimensions: ±~20 % width variation
+    let mouth_w = face_unit * (0.18 + prand(seed.wrapping_add(21)) * 0.08);
     let mouth_h = face_unit * 0.22;
 
-    // Random variation in eye spacing (~24–32 % of face_unit from centre)
-    let eye_x   = face_unit * (0.24 + prand(seed.wrapping_add(10)) * 0.08);
-    let eye_y   =  ph * 0.10;
+    // Eye spacing scales with block width so wide blocks have wider-set eyes
+    // (24–32 % of pw from centre instead of face_unit, which was capped at 52)
+    let eye_x = pw * (0.24 + prand(seed.wrapping_add(10)) * 0.08);
+
+    // Small random vertical jitter (±5 % of face_unit) for high/low brow variety
+    let eye_y_jitter = face_unit * (prand(seed.wrapping_add(22)) - 0.5) * 0.10;
+    let eye_y   =  ph * 0.10 + eye_y_jitter;
     let mouth_y = -ph * 0.12;
 
     // 20 % chance of crossed eyes
