@@ -156,12 +156,13 @@ pub fn update_faces(
             }
         };
 
-        for &e in &[face.left_eye, face.right_eye] {
-            if let Ok(mut t) = transforms.get_mut(e) {
-                t.scale = Vec3::new(eye_sx, eye_sy, 1.0);
-            }
-        }
         if tilted {
+            // Hide eye whites — only the bare ✕ bars show
+            for &e in &[face.left_eye, face.right_eye] {
+                if let Ok(mut t) = transforms.get_mut(e) {
+                    t.scale = Vec3::ZERO;
+                }
+            }
             // X-eyes: two flat diagonal bars per eye socket
             let bar_sx = face.eye_r * 1.6;
             let bar_sy = face.eye_r * 0.28;
@@ -178,6 +179,11 @@ pub fn update_faces(
                 }
             }
         } else {
+            for &e in &[face.left_eye, face.right_eye] {
+                if let Ok(mut t) = transforms.get_mut(e) {
+                    t.scale = Vec3::new(eye_sx, eye_sy, 1.0);
+                }
+            }
             for &e in &[face.left_pupil, face.right_pupil] {
                 if let Ok(mut t) = transforms.get_mut(e) {
                     t.scale    = Vec3::new(face.pupil_r, face.pupil_r, 1.0);
