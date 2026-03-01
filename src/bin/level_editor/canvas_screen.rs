@@ -26,6 +26,11 @@ const INPUT_COLOR: Color = Color::srgb(0.4, 0.9, 0.5);
 
 const GROUND_WIDTH: f32 = 1000.0;
 
+// Game-window bounds (512 × 768, camera at origin)
+const FRAME_HW: f32 = 256.0; // half-width
+const FRAME_HH: f32 = 384.0; // half-height
+const FRAME_COLOR: Color = Color::srgba(0.9, 0.9, 0.9, 0.35);
+
 fn snap(v: f32, grid: f32) -> f32 {
     (v / grid).round() * grid
 }
@@ -114,6 +119,36 @@ fn setup_canvas(
         MeshMaterial2d(materials.add(ColorMaterial::from_color(GROUND_COLOR))),
         Transform::from_xyz(0.0, GROUND_Y, 0.0),
     ));
+
+    // Game-frame outline: four thin rects at the 512×768 window boundary
+    let frame_mat = materials.add(ColorMaterial::from_color(FRAME_COLOR));
+    let thick = 2.0_f32;
+    // top edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(FRAME_HW * 2.0 + thick, thick))),
+        MeshMaterial2d(frame_mat.clone()),
+        Transform::from_xyz(0.0,  FRAME_HH, -0.1)));
+    // bottom edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(FRAME_HW * 2.0 + thick, thick))),
+        MeshMaterial2d(frame_mat.clone()),
+        Transform::from_xyz(0.0, -FRAME_HH, -0.1)));
+    // left edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(thick, FRAME_HH * 2.0))),
+        MeshMaterial2d(frame_mat.clone()),
+        Transform::from_xyz(-FRAME_HW, 0.0, -0.1)));
+    // right edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(thick, FRAME_HH * 2.0))),
+        MeshMaterial2d(frame_mat),
+        Transform::from_xyz( FRAME_HW, 0.0, -0.1)));
+    // label near top-left corner of the frame
+    commands.spawn((CanvasEntity,
+        Text2d::new("game frame"),
+        TextFont { font_size: 11.0, ..default() },
+        TextColor(FRAME_COLOR),
+        Transform::from_xyz(-FRAME_HW + 4.0, FRAME_HH - 10.0, -0.1)));
 
     // HUD text — top-left corner
     commands.spawn((

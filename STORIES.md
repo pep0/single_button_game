@@ -86,7 +86,7 @@ uses `border_color` instead of the fixed dark constant. Builds clean.
 
 ### STORY-022: Show the visible game-frame boundary in the level editor
 
-**status:** pending
+**status:** done
 **priority:** medium
 
 #### What
@@ -125,7 +125,11 @@ prevents placing key blocks above the visible area or too close to the edges.
 - Do NOT change game code, other editor files, or the sequence screen
 
 #### Result
-<!-- Agent fills this in when done -->
+Added `FRAME_HW=256`, `FRAME_HH=384`, `FRAME_COLOR` constants to
+`canvas_screen.rs`. In `setup_canvas`, spawned four thin (2 px) `Rectangle`
+meshes as the top/bottom/left/right edges of the 512×768 game frame at z=−0.1,
+plus a small "game frame" text label at the top-left corner. All tagged
+`CanvasEntity` for automatic cleanup. Builds clean.
 
 ---
 
