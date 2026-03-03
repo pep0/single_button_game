@@ -83,9 +83,19 @@ pub fn setup_playing(
     // Compute slot indicator Y: above the first (lowest) block; slot_oscillation updates it each frame
     let slot_y = blueprint.slots[0].y + blueprint.slots[0].height / 2.0 + SPAWN_HEIGHT_ABOVE;
 
+    // Tint slot indicator warm orange as levels progress (level 1 = pale, level 10 = warm)
+    let level_t = (score.round as f32 / 9.0).clamp(0.0, 1.0);
+    let slot_color = {
+        // SLOT_COLOR (0.88, 0.76, 0.48) → warm orange (0.95, 0.55, 0.22)
+        let r = 0.88 + level_t * (0.95 - 0.88);
+        let g = 0.76 + level_t * (0.55 - 0.76);
+        let b = 0.48 + level_t * (0.22 - 0.48);
+        Color::srgb(r, g, b)
+    };
+
     // Spawn slot indicator
     let slot_mesh = meshes.add(Rectangle::new(1.0, 1.0));
-    let slot_material = materials.add(ColorMaterial::from_color(SLOT_COLOR));
+    let slot_material = materials.add(ColorMaterial::from_color(slot_color));
     commands.spawn((
         PlayingEntity,
         SlotIndicator,
@@ -168,13 +178,24 @@ pub fn setup_playing(
         Transform::from_xyz(BAR_X, 0.0, 1.7),
     ));
 
+    // Streak badge — updated each frame by update_streak_text
+    commands.spawn((
+        PlayingEntity,
+        StreakText,
+        Text2d::new(""),
+        TextFont { font_size: 14.0, ..default() },
+        TextColor(Color::srgba(1.0, 0.82, 0.20, 0.0)),
+        Transform::from_xyz(BAR_X, 0.0, 1.8),
+    ));
+
     // Init resources — insert/replace Blueprint so Failed/settle can read it.
-    commands.insert_resource(SlotState::default());
+    let slot_speed = SLOT_SPEED * (1.0 + score.round as f32 * 0.06);
+    commands.insert_resource(SlotState { speed: slot_speed, ..SlotState::default() });
     commands.insert_resource(ProductionState::default());
     commands.insert_resource(BuildState::default());
     commands.insert_resource(ProducedDimensions::default());
     commands.insert_resource(ScreenShake::default());
-    commands.insert_resource(LevelScoreBar { accumulated: 0, target: num_slots as i32, threshold_reached: false });
+    commands.insert_resource(LevelScoreBar { accumulated: 0, target: num_slots as i32, threshold_reached: false, streak: 0 });
     commands.insert_resource(blueprint);
 }
 

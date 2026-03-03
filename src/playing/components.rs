@@ -56,3 +56,6 @@ pub struct ScoreBarFill;
 
 #[derive(Component)]
 pub struct ScoreBarThreshold;
+
+#[derive(Component)]
+pub struct StreakText;

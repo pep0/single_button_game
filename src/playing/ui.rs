@@ -310,6 +310,26 @@ pub fn update_score_bar(
     }
 }
 
+pub fn update_streak_text(
+    time: Res<Time>,
+    shake: Res<ScreenShake>,
+    level_score: Res<LevelScoreBar>,
+    mut query: Query<(&mut Text2d, &mut Transform, &mut TextColor), With<StreakText>>,
+) {
+    let Ok((mut text, mut transform, mut color)) = query.single_mut() else { return };
+
+    if level_score.streak >= 2 {
+        text.0 = format!("x{} STREAK", level_score.streak);
+        transform.translation.x = BAR_X;
+        transform.translation.y = shake.base_camera_y - BAR_MAX_H / 2.0 - 18.0;
+        let pulse = (time.elapsed_secs() * 4.0).sin() * 0.15 + 0.85;
+        color.0 = Color::srgba(1.0, 0.82, 0.20, pulse);
+    } else {
+        text.0.clear();
+        color.0 = Color::srgba(1.0, 0.82, 0.20, 0.0);
+    }
+}
+
 /// Pulsing "Evaluating..." text shown while the physics settle check is running.
 pub fn update_evaluating_indicator(
     time: Res<Time>,
