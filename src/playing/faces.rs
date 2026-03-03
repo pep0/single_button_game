@@ -30,6 +30,10 @@ pub struct BlockFace {
     right_pupil2: Entity,
     mouth: Entity,
     mouth_mask: Option<Entity>, // crescent mask for green smile / grey frown
+    left_brow: Entity,
+    right_brow: Entity,
+    brow_y: f32,         // local-space Y of brow centres
+    eye_x: f32,          // eye horizontal offset (for brow positioning)
     // Base pupil positions; look offsets are applied relative to these
     left_pupil_x:  f32,
     left_pupil_y:  f32,
@@ -60,7 +64,7 @@ pub fn spawn_face(
     score_tier: u8,
     seed: u32,
 ) -> BlockFace {
-    let face_unit = ph.min(pw).min(52.0).max(12.0);
+    let face_unit = ph.min(pw).min(100.0).max(12.0);
 
     // Random eye size: ±~25 % band around baseline
     let eye_r   = face_unit * (0.09 + prand(seed.wrapping_add(20)) * 0.05);
@@ -104,6 +108,8 @@ pub fn spawn_face(
         )).id()
     };
 
+    let brow_y = eye_y + eye_r * 1.55;
+
     let left_eye     = sp(white, -eye_x,         eye_y,   0.00);
     let right_eye    = sp(white,  eye_x,         eye_y,   0.00);
     let left_pupil   = sp(dark,  left_pupil_x,  pupil_y, 0.01);
@@ -112,6 +118,8 @@ pub fn spawn_face(
     let left_pupil2  = sp(dark,  left_pupil_x,  pupil_y, 0.01);
     let right_pupil2 = sp(dark,  right_pupil_x, pupil_y, 0.01);
     let mouth        = sp(dark,  0.0,            mouth_y, 0.00);
+    let left_brow    = sp(dark, -eye_x,          brow_y,  0.02);
+    let right_brow   = sp(dark,  eye_x,          brow_y,  0.02);
 
     // Crescent mask: a fill-coloured circle that slides over the dark mouth to
     // leave only a bottom arc (smile) or top arc (frown) visible.
@@ -137,6 +145,10 @@ pub fn spawn_face(
         right_pupil2,
         mouth,
         mouth_mask,
+        left_brow,
+        right_brow,
+        brow_y,
+        eye_x,
         left_pupil_x,
         left_pupil_y: pupil_y,
         right_pupil_x,
@@ -254,6 +266,10 @@ pub fn update_faces(
         let right_pupil_y = face.right_pupil_y;
         let pupil_r       = face.pupil_r;
 
+        // Brow dimensions
+        let brow_w  = face.eye_r * 2.2;
+        let brow_h  = face.eye_r * 0.32;
+
         if tilted {
             // Hide eye whites — only the bare ✕ bars show
             for &e in &[face.left_eye, face.right_eye] {
@@ -274,6 +290,12 @@ pub fn update_faces(
                 if let Ok(mut t) = transforms.get_mut(e) {
                     t.scale    = Vec3::new(bar_sx, bar_sy, 1.0);
                     t.rotation = Quat::from_rotation_z(-FRAC_PI_4);
+                }
+            }
+            // Hide brows when block is tilted (X-eyes state)
+            for &e in &[face.left_brow, face.right_brow] {
+                if let Ok(mut t) = transforms.get_mut(e) {
+                    t.scale = Vec3::ZERO;
                 }
             }
         } else {
@@ -299,6 +321,35 @@ pub fn update_faces(
                 if let Ok(mut t) = transforms.get_mut(e) {
                     t.scale = Vec3::ZERO;
                 }
+            }
+
+            // Eyebrows: angle encodes expression
+            // falling: outer-up fear (+0.30 left, -0.30 right)
+            // grey:    inner-up angry (-0.18 left, +0.18 right)
+            // yellow:  flat neutral (0.0)
+            // green:   outer-up happy (+0.18 left, -0.18 right)
+            let (left_brow_angle, right_brow_angle) = if falling {
+                (0.30_f32, -0.30_f32)
+            } else {
+                match face.score_tier {
+                    0 => (-0.18, 0.18),
+                    1 => (0.0, 0.0),
+                    _ => (0.18, -0.18),
+                }
+            };
+            let eye_x = face.eye_x;
+            let brow_y = face.brow_y;
+            if let Ok(mut t) = transforms.get_mut(face.left_brow) {
+                t.translation.x = -eye_x;
+                t.translation.y = brow_y;
+                t.scale    = Vec3::new(brow_w, brow_h, 1.0);
+                t.rotation = Quat::from_rotation_z(left_brow_angle);
+            }
+            if let Ok(mut t) = transforms.get_mut(face.right_brow) {
+                t.translation.x = eye_x;
+                t.translation.y = brow_y;
+                t.scale    = Vec3::new(brow_w, brow_h, 1.0);
+                t.rotation = Quat::from_rotation_z(right_brow_angle);
             }
         }
 

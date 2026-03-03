@@ -158,7 +158,7 @@ In `update_score_bar` (`ui.rs`), detect first threshold crossing
 
 ### STORY-027: Larger eyes proportional to block size, add eyebrows
 
-**status:** pending
+**status:** done
 **priority:** medium
 
 #### What
@@ -209,7 +209,14 @@ and more expressive. Eyebrows greatly improve readability of emotional expressio
 - Do NOT touch `input.rs`, physics, particles, or other files
 
 #### Result
-<!-- Agent fills this in when done -->
+Raised `face_unit` cap from `min(52.0)` to `min(100.0)` in `spawn_face` so large
+blocks get proportionally bigger eyes and mouths. Added `left_brow`/`right_brow`
+Entity fields plus `brow_y`/`eye_x` geometry fields to `BlockFace`. In
+`spawn_face`, spawned two dark flat-ellipse brows at `eye_y + eye_r * 1.55`.
+In `update_faces`: when tilted, brows are hidden (scale zero); otherwise, brow
+angle encodes expression — fear (+0.30 outer-up) while falling, angry inner-up
+(-0.18) for grey, flat (0.0) for yellow, happy outer-up (+0.18) for green.
+Builds clean.
 
 ---
 
