@@ -248,7 +248,7 @@ const BAR_X: f32 = 234.0;
 
 pub fn update_score_bar(
     shake: Res<ScreenShake>,
-    level_score: Res<LevelScoreBar>,
+    mut level_score: ResMut<LevelScoreBar>,
     mut bg_query: Query<&mut Transform, With<ScoreBarBg>>,
     mut fill_query: Query<
         (&mut Transform, &MeshMaterial2d<ColorMaterial>),
@@ -259,6 +259,8 @@ pub fn update_score_bar(
         (With<ScoreBarThreshold>, Without<ScoreBarBg>, Without<ScoreBarFill>),
     >,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let center_y = shake.base_camera_y;
     let bg_bottom_y = center_y - BAR_MAX_H / 2.0;
@@ -273,6 +275,21 @@ pub fn update_score_bar(
     if let Ok(mut t) = thresh_query.single_mut() {
         t.translation.x = BAR_X;
         t.translation.y = bg_bottom_y + BAR_MAX_H;
+    }
+
+    // Detect threshold crossing (once per level)
+    if !level_score.threshold_reached && level_score.accumulated >= level_score.target {
+        level_score.threshold_reached = true;
+        // Burst at top of the filled bar
+        let burst_y = bg_bottom_y + BAR_MAX_H;
+        super::particles::spawn_celebration_burst(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            BAR_X,
+            burst_y,
+            level_score.accumulated as u32,
+        );
     }
 
     // Scale and reposition fill

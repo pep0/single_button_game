@@ -109,7 +109,7 @@ and green at/above. Registered system in `mod.rs`. Builds clean.
 
 ### STORY-026: Particle burst when level score threshold is reached
 
-**status:** pending
+**status:** done
 **priority:** medium
 
 #### What
@@ -147,7 +147,12 @@ particles for block landings.
 - Do NOT change `tick_particles`, smoke burst, or any other system
 
 #### Result
-<!-- Agent fills this in when done -->
+Added `spawn_celebration_burst` to `particles.rs`: 20 particles alternating gold
+and spring-green, fanned upward (27°–153°), lifetime 0.6–1.0 s, radius 3–7 px.
+In `update_score_bar` (`ui.rs`), detect first threshold crossing
+(`!threshold_reached && accumulated >= target`), set the flag, and call
+`spawn_celebration_burst` at the top of the bar. Extended function params to include
+`Commands`, `Assets<Mesh>`. Builds clean.
 
 ---
 

@@ -59,6 +59,56 @@ pub fn spawn_smoke_burst(
     }
 }
 
+/// Burst of colorful celebration particles when the level score threshold is reached.
+pub fn spawn_celebration_burst(
+    commands:  &mut Commands,
+    meshes:    &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    center_x:  f32,
+    center_y:  f32,
+    seed_base: u32,
+) {
+    const COUNT: u32 = 20;
+    for i in 0..COUNT {
+        let s = seed_base.wrapping_mul(97).wrapping_add(i * 2311);
+
+        // Spread spawn across a small area
+        let x_off = (prand(s) - 0.5) * 14.0;
+        let y_off = (prand(s + 1) - 0.5) * 8.0;
+
+        // Fan upward and sideways
+        let angle = std::f32::consts::PI * (0.15 + prand(s + 2) * 0.70); // 27°–153° (upward half)
+        let speed = 55.0 + prand(s + 3) * 80.0;
+        let vx = angle.cos() * speed;
+        let vy = angle.sin() * speed;
+
+        let lifetime = 0.6 + prand(s + 4) * 0.4;
+        let radius   = 3.0 + prand(s + 5) * 4.0;
+
+        // Alternate gold and spring-green
+        let color = if i % 2 == 0 {
+            Color::srgba(1.0, 0.80, 0.20, 0.90)
+        } else {
+            Color::srgba(0.40, 0.95, 0.55, 0.90)
+        };
+
+        let mesh = meshes.add(Circle::new(radius));
+        let mat  = materials.add(ColorMaterial::from_color(color));
+
+        commands.spawn((
+            PlayingEntity,
+            Particle {
+                velocity: Vec2::new(vx, vy),
+                lifetime,
+                age: 0.0,
+            },
+            Mesh2d(mesh),
+            MeshMaterial2d(mat),
+            Transform::from_xyz(center_x + x_off, center_y + y_off, 2.0),
+        ));
+    }
+}
+
 /// Moves particles, fades them out, and despawns expired ones.
 pub fn tick_particles(
     mut commands:  Commands,
