@@ -7,14 +7,33 @@ use super::components::*;
 use super::faces;
 use super::resources::*;
 
-const BLOCK_GREEN:  Color = Color::srgb(0.38, 0.72, 0.45);
-const BLOCK_YELLOW: Color = Color::srgb(0.82, 0.70, 0.30);
-const BLOCK_GREY:   Color = Color::srgb(0.48, 0.46, 0.52);
-// Borders: ~60 % brightness of the matching fill hue
-const BORDER_GREEN:  Color = Color::srgb(0.22, 0.43, 0.27);
-const BORDER_YELLOW: Color = Color::srgb(0.49, 0.42, 0.18);
-const BORDER_GREY:   Color = Color::srgb(0.29, 0.28, 0.31);
+const BLOCK_GREEN:  (f32,f32,f32) = (0.38, 0.72, 0.45);
+const BLOCK_YELLOW: (f32,f32,f32) = (0.82, 0.70, 0.30);
+const BLOCK_GREY:   (f32,f32,f32) = (0.48, 0.46, 0.52);
+const BORDER_GREEN:  (f32,f32,f32) = (0.22, 0.43, 0.27);
+const BORDER_YELLOW: (f32,f32,f32) = (0.49, 0.42, 0.18);
+const BORDER_GREY:   (f32,f32,f32) = (0.29, 0.28, 0.31);
 const BORDER_PX: f32 = 3.0;
+
+/// Tiny deterministic hue/lightness nudge so each block has a slightly unique shade.
+/// `idx` is the block index; `range` is the max absolute offset per channel (e.g. 0.06).
+fn tinted(base: (f32, f32, f32), idx: usize, range: f32) -> Color {
+    // Simple LCG hash per channel
+    let h = |seed: u32| -> f32 {
+        let x = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+        let x = x.wrapping_mul(22695477).wrapping_add(1);
+        ((x >> 8) & 0xFF_FFFF) as f32 / 0xFF_FFFFu32 as f32
+    };
+    let s = idx as u32 * 3779;
+    let dr = (h(s)     - 0.5) * 2.0 * range;
+    let dg = (h(s + 1) - 0.5) * 2.0 * range;
+    let db = (h(s + 2) - 0.5) * 2.0 * range;
+    Color::srgb(
+        (base.0 + dr).clamp(0.0, 1.0),
+        (base.1 + dg).clamp(0.0, 1.0),
+        (base.2 + db).clamp(0.0, 1.0),
+    )
+}
 
 pub fn slot_oscillation(
     time: Res<Time>,
@@ -119,19 +138,20 @@ pub fn production_input(
         let sh = target_slot.height;
         let score = (pw / sw).min(sw / pw) * (ph / sh).min(sh / ph);
         let score_tier: u8 = if score >= 0.80 { 2 } else if score >= 0.60 { 1 } else { 0 };
+        let idx = build_state.current_index;
         let fill_color = if score_tier == 2 {
-            BLOCK_GREEN
+            tinted(BLOCK_GREEN, idx, 0.06)
         } else if score_tier == 1 {
-            BLOCK_YELLOW
+            tinted(BLOCK_YELLOW, idx, 0.06)
         } else {
-            BLOCK_GREY
+            tinted(BLOCK_GREY, idx, 0.04)
         };
         let border_color = if score_tier == 2 {
-            BORDER_GREEN
+            tinted(BORDER_GREEN, idx, 0.04)
         } else if score_tier == 1 {
-            BORDER_YELLOW
+            tinted(BORDER_YELLOW, idx, 0.04)
         } else {
-            BORDER_GREY
+            tinted(BORDER_GREY, idx, 0.03)
         };
 
         let block_entity = commands.spawn((
