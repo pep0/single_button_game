@@ -109,8 +109,11 @@ pub fn production_input(
     }
 
     if keyboard.pressed(KeyCode::Space) && production.is_producing {
-        production.current_height =
-            (production.current_height + GROW_SPEED * time.delta_secs()).min(MAX_HEIGHT);
+        let new_height = (production.current_height + GROW_SPEED * time.delta_secs()).min(MAX_HEIGHT);
+        production.current_height = new_height;
+        if new_height >= MAX_HEIGHT {
+            production.auto_drop = true;
+        }
 
         if let Ok((_entity, mut transform)) = prod_query.single_mut() {
             transform.scale.x = width;
@@ -119,7 +122,7 @@ pub fn production_input(
         }
     }
 
-    if keyboard.just_released(KeyCode::Space) && production.is_producing {
+    if (keyboard.just_released(KeyCode::Space) || production.auto_drop) && production.is_producing {
         production.is_producing = false;
         let produced_width = width;
         let produced_height = production.current_height;
@@ -199,5 +202,6 @@ pub fn production_input(
 
         slot_state.locked_width = None;
         production.current_height = 0.0;
+        production.auto_drop = false;
     }
 }

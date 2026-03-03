@@ -59,6 +59,7 @@ impl Default for SlotState {
 pub struct ProductionState {
     pub is_producing: bool,
     pub current_height: f32,
+    pub auto_drop: bool,
 }
 
 #[derive(Resource)]
@@ -66,11 +67,12 @@ pub struct LevelScoreBar {
     pub accumulated: i32,
     pub target: i32,
     pub threshold_reached: bool,
+    pub streak: u32,
 }
 
 impl Default for LevelScoreBar {
     fn default() -> Self {
-        Self { accumulated: 0, target: 1, threshold_reached: false }
+        Self { accumulated: 0, target: 1, threshold_reached: false, streak: 0 }
     }
 }
 
