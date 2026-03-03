@@ -138,12 +138,43 @@ pub fn setup_playing(
         Transform::from_xyz(0.0, 0.0, 2.0),
     ));
 
+    // Score bar — background, fill, and threshold line
+    const BAR_X: f32 = 234.0;
+    const BAR_MAX_H: f32 = 160.0;
+    const BAR_W: f32 = 10.0;
+    let bg_mat = materials.add(ColorMaterial::from_color(Color::srgba(0.15, 0.15, 0.18, 0.80)));
+    commands.spawn((
+        PlayingEntity,
+        ScoreBarBg,
+        Mesh2d(meshes.add(Rectangle::new(BAR_W, BAR_MAX_H))),
+        MeshMaterial2d(bg_mat),
+        Transform::from_xyz(BAR_X, 0.0, 1.5),
+    ));
+    let fill_mat = materials.add(ColorMaterial::from_color(Color::srgb(0.85, 0.72, 0.22)));
+    commands.spawn((
+        PlayingEntity,
+        ScoreBarFill,
+        Mesh2d(meshes.add(Rectangle::new(BAR_W, 1.0))),
+        MeshMaterial2d(fill_mat),
+        Transform::from_xyz(BAR_X, 0.0, 1.6),
+    ));
+    // Threshold line at the very top of the background
+    let thresh_mat = materials.add(ColorMaterial::from_color(Color::srgba(0.95, 0.95, 0.95, 0.70)));
+    commands.spawn((
+        PlayingEntity,
+        ScoreBarThreshold,
+        Mesh2d(meshes.add(Rectangle::new(BAR_W + 4.0, 2.0))),
+        MeshMaterial2d(thresh_mat),
+        Transform::from_xyz(BAR_X, 0.0, 1.7),
+    ));
+
     // Init resources — insert/replace Blueprint so Failed/settle can read it.
     commands.insert_resource(SlotState::default());
     commands.insert_resource(ProductionState::default());
     commands.insert_resource(BuildState::default());
     commands.insert_resource(ProducedDimensions::default());
     commands.insert_resource(ScreenShake::default());
+    commands.insert_resource(LevelScoreBar { accumulated: 0, target: num_slots as i32, threshold_reached: false });
     commands.insert_resource(blueprint);
 }
 
@@ -160,4 +191,5 @@ pub fn cleanup_playing(
     commands.remove_resource::<BuildState>();
     commands.remove_resource::<SlotState>();
     commands.remove_resource::<ProductionState>();
+    commands.remove_resource::<LevelScoreBar>();
 }

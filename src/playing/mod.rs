@@ -43,6 +43,7 @@ impl Plugin for PlayingPlugin {
                     ui::animate_level_complete,
                     ui::update_evaluating_indicator,
                     ui::update_hearts,
+                    ui::update_score_bar,
                     particles::tick_particles,
                     faces::update_faces,
                 )

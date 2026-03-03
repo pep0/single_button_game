@@ -243,6 +243,56 @@ pub fn update_hearts(
     }
 }
 
+const BAR_MAX_H: f32 = 160.0;
+const BAR_X: f32 = 234.0;
+
+pub fn update_score_bar(
+    shake: Res<ScreenShake>,
+    level_score: Res<LevelScoreBar>,
+    mut bg_query: Query<&mut Transform, With<ScoreBarBg>>,
+    mut fill_query: Query<
+        (&mut Transform, &MeshMaterial2d<ColorMaterial>),
+        (With<ScoreBarFill>, Without<ScoreBarBg>),
+    >,
+    mut thresh_query: Query<
+        &mut Transform,
+        (With<ScoreBarThreshold>, Without<ScoreBarBg>, Without<ScoreBarFill>),
+    >,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let center_y = shake.base_camera_y;
+    let bg_bottom_y = center_y - BAR_MAX_H / 2.0;
+
+    // Reposition background
+    if let Ok(mut t) = bg_query.single_mut() {
+        t.translation.x = BAR_X;
+        t.translation.y = center_y;
+    }
+
+    // Reposition threshold line at top of background
+    if let Ok(mut t) = thresh_query.single_mut() {
+        t.translation.x = BAR_X;
+        t.translation.y = bg_bottom_y + BAR_MAX_H;
+    }
+
+    // Scale and reposition fill
+    let ratio = (level_score.accumulated as f32 / level_score.target as f32).clamp(0.0, 1.0);
+    let fill_h = (ratio * BAR_MAX_H).max(1.0);
+    if let Ok((mut t, mat_handle)) = fill_query.single_mut() {
+        t.translation.x = BAR_X;
+        t.translation.y = bg_bottom_y + fill_h / 2.0;
+        t.scale = Vec3::new(1.0, fill_h, 1.0);
+
+        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+            mat.color = if level_score.threshold_reached {
+                Color::srgb(0.38, 0.88, 0.55)
+            } else {
+                Color::srgb(0.85, 0.72, 0.22)
+            };
+        }
+    }
+}
+
 /// Pulsing "Evaluating..." text shown while the physics settle check is running.
 pub fn update_evaluating_indicator(
     time: Res<Time>,

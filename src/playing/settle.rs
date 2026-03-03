@@ -128,6 +128,7 @@ pub fn check_per_block_settle(
     build_state: Res<BuildState>,
     blueprint: Res<Blueprint>,
     produced: Res<ProducedDimensions>,
+    mut level_score: ResMut<LevelScoreBar>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut block_query: Query<(
         &TowerBlock,
@@ -168,6 +169,10 @@ pub fn check_per_block_settle(
             let ph = produced.heights[i];
             let score = (pw / slot.width).min(slot.width / pw)
                 * (ph / slot.height).min(slot.height / ph);
+
+            // Accumulate tier points into the level score bar
+            let tier: u8 = if score >= 0.80 { 2 } else if score >= 0.60 { 1 } else { 0 };
+            level_score.accumulated += tier as i32;
 
             let (r, g, b, font_size) = score_visuals(score);
             let spawn_y = (transform.translation.y + ph / 2.0 + 10.0).min(popup_y_max);

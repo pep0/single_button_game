@@ -47,3 +47,12 @@ pub struct HeartIcon(pub usize); // index 0..MAX_LIVES-1
 
 #[derive(Component)]
 pub struct EvaluatingText;
+
+#[derive(Component)]
+pub struct ScoreBarBg;
+
+#[derive(Component)]
+pub struct ScoreBarFill;
+
+#[derive(Component)]
+pub struct ScoreBarThreshold;

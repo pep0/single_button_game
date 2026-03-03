@@ -41,188 +41,170 @@ Why this matters. What problem it solves or what value it adds.
 
 <!-- Add new stories below this line -->
 
-### STORY-021: Use per-tier darker border colour on blocks
+### STORY-025: Add per-level score bar
 
 **status:** done
-**priority:** medium
+**priority:** high
 
 #### What
-Block borders are currently a fixed near-black colour (`srgb(0.10, 0.10, 0.15)`)
-regardless of block score. Replace this with a per-tier border that is a darkened
-version of the block fill colour:
+Add a vertical score bar on the right edge of the game screen that shows accumulated
+block points versus a per-level threshold. Scoring: grey block = 0 pts, yellow = 1 pt,
+green = 2 pts. Threshold = number of blocks in the level.
 
-| Tier | Fill | Border (≈ 60 % of fill) |
-|---|---|---|
-| Green (≥ 0.80) | `srgb(0.38, 0.72, 0.45)` | `srgb(0.22, 0.43, 0.27)` |
-| Yellow (0.60–0.79) | `srgb(0.82, 0.70, 0.30)` | `srgb(0.49, 0.42, 0.18)` |
-| Grey (< 0.60) | `srgb(0.48, 0.46, 0.52)` | `srgb(0.29, 0.28, 0.31)` |
+The bar is always visible during play. It fills from the bottom as blocks settle and
+earn points. The threshold line marks the goal. When the accumulated score reaches or
+exceeds the threshold the fill turns green.
+
+Layout (world space, repositioned each frame via `ScreenShake.base_camera_y`):
+- x = +234 (right edge of 512 px viewport)
+- Background: 10 × 160 px dark rect `srgba(0.15, 0.15, 0.18, 0.80)` at z = 1.5
+- Fill: 10 × `(ratio * 160)` px rect anchored to the bottom of the background
+  - Below threshold: gold `srgb(0.85, 0.72, 0.22)`
+  - At/above threshold: spring green `srgb(0.38, 0.88, 0.55)`
+- Threshold line: 14 × 2 px white-ish rect `srgba(0.95, 0.95, 0.95, 0.70)` at z = 1.6,
+  positioned at `bg_bottom_y + 160 * (target as f32 / target as f32)` — i.e. at the
+  very top of the background since threshold == target (always full bar height)
+
+Score is accumulated when a block settles in `check_per_block_settle` (when
+`rest_secs >= 0.4`): compute `tier: u8` the same way as block colouring
+(score ≥ 0.80 → 2, ≥ 0.60 → 1, else 0) and add to `level_score.accumulated`.
 
 #### Why
-A near-black border looks harsh and unrelated to the block colour. A darker tint
-of the same hue makes the block feel like a single cohesive shape.
+Players need feedback on how well they are placing blocks mid-level. The bar makes
+the scoring system visible and gives a clear goal to chase.
 
 #### Acceptance criteria
-- [ ] Each score tier's border visually matches the hue of its fill (darker shade)
-- [ ] The fixed `BLOCK_BORDER` constant is replaced by per-tier derived colours
+- [ ] A vertical bar is visible on the right edge during play
+- [ ] Fill grows as blocks settle; colour is gold below threshold, green at/above
+- [ ] A threshold line sits at the top of the background (since threshold = num bricks)
+- [ ] Bar repositions correctly when the camera moves up for tall towers
 - [ ] `cargo build` compiles clean
 
 #### Context & constraints
-- Only `src/playing/input.rs` needs to change
-- `fill_color` and `score_tier` are already computed before the border child is
-  spawned — derive `border_color` from the same tier logic and use it in the
-  `ColorMaterial` for the border rectangle child
-- `BLOCK_BORDER` constant can be removed; the three new border colours can be
-  inline constants or derived inline
-- Do NOT touch physics, faces, particles, or any other file
+- New resource `LevelScoreBar { accumulated: i32, target: i32, threshold_reached: bool }`
+  in `src/playing/resources.rs`
+- New components `ScoreBarBg` and `ScoreBarFill` in `src/playing/components.rs`
+- Spawn the two rect entities (background + fill) in `setup::setup_playing`; init the
+  resource there too (`LevelScoreBar { accumulated: 0, target: num_slots as i32, .. }`)
+- `check_per_block_settle` in `settle.rs` gets `mut level_score: ResMut<LevelScoreBar>`;
+  add tier points when `timer.popup_shown` flips to true (same block, same condition)
+- Add `update_score_bar` system to `ui.rs`; register it in `mod.rs` alongside
+  `update_hearts`
+- The fill rect uses a 1×1 unit mesh scaled by the system each frame — same pattern
+  as ghost blocks and the slot indicator
+- Do NOT touch physics, audio, or any non-playing file
 
 #### Result
-Removed `BLOCK_BORDER` constant from `src/playing/input.rs` and added three
-per-tier border constants (`BORDER_GREEN`, `BORDER_YELLOW`, `BORDER_GREY`) at
-≈ 60 % brightness of their matching fill hue. Added `border_color` selection
-alongside the existing `fill_color` selection; the border rectangle child now
-uses `border_color` instead of the fixed dark constant. Builds clean.
+Added `LevelScoreBar { accumulated, target, threshold_reached }` resource to
+`resources.rs`. Added `ScoreBarBg`, `ScoreBarFill`, `ScoreBarThreshold` components
+to `components.rs`. In `setup_playing`, spawned three rect entities (bg 10×160,
+fill 10×1 scaled by system, threshold line 14×2) tagged `PlayingEntity`, and init
+the resource with `target = num_slots`. In `check_per_block_settle`, added tier
+point accumulation (`level_score.accumulated += tier as i32`) alongside the existing
+popup spawn. Added `update_score_bar` to `ui.rs`: repositions bar each frame relative
+to `shake.base_camera_y`, scales fill height from ratio, shows gold below threshold
+and green at/above. Registered system in `mod.rs`. Builds clean.
 
 ---
 
-### STORY-022: Show the visible game-frame boundary in the level editor
+### STORY-026: Particle burst when level score threshold is reached
 
-**status:** done
+**status:** pending
 **priority:** medium
 
 #### What
-Add a thin rectangle outline to the editor canvas showing the exact bounds of the
-player's visible game window. This helps designers know which blocks will be visible
-at level start without guessing.
+When `level_score.accumulated` reaches `level_score.target` for the first time during
+play (detected inside `update_score_bar`), trigger a one-shot celebration burst of
+colorful particles at the bar position.
 
-The game window is **512 × 768 px** with the camera starting at world origin
-`(0, 0)`, so the visible rectangle is:
-- x: **−256 to +256**
-- y: **−384 to +384**
+Add `spawn_celebration_burst` to `src/playing/particles.rs`:
+- 20 particles total
+- Mix of gold `srgba(1.0, 0.80, 0.20, 0.90)` and spring-green
+  `srgba(0.40, 0.95, 0.55, 0.90)` (alternate by particle index)
+- Spray upward and outward from `(234.0, bar_fill_top_y)`
+- Lifetime: 0.6–1.0 s, radius: 3–7 px
 
-Draw this as a thin (2 px) unfilled rectangle outline in a neutral colour (e.g.
-`srgba(0.9, 0.9, 0.9, 0.35)`) at z = −0.1 (behind blocks). Label it "game frame"
-with small text near the top edge.
-
-Since the editor camera can pan, the outline should always stay at these fixed
-world coordinates (it is spawned once in `setup_canvas` and never moved).
+In `update_score_bar`: when threshold is first crossed (`!level_score.threshold_reached`
+and `accumulated >= target`), set `threshold_reached = true` and call
+`spawn_celebration_burst`. The system already queries `Commands`, `Assets<Mesh>`,
+`Assets<ColorMaterial>` for the fill colour update — add them if not already present.
 
 #### Why
-Designers have no reference for what the player sees at level start. The outline
-prevents placing key blocks above the visible area or too close to the edges.
+Visual confirmation that the player has met the goal, matching the existing smoke
+particles for block landings.
 
 #### Acceptance criteria
-- [ ] A rectangle outline is visible in the editor at `±256 × ±384` world coords
-- [ ] The outline does not move when the editor camera pans
-- [ ] A small "game frame" label sits near the top edge of the outline
-- [ ] Blocks and other editor elements draw on top of the outline (z ordering)
+- [ ] Colorful particles burst from the top of the score bar the moment the threshold
+      is reached
+- [ ] Burst triggers only once per level (no repeat if more blocks land afterward)
+- [ ] Particles fade and disappear naturally (existing `tick_particles` system handles them)
 - [ ] `cargo build` compiles clean
 
 #### Context & constraints
-- Only `src/bin/level_editor/canvas_screen.rs` → `setup_canvas` needs to change
-- Draw the outline as four thin `Rectangle` meshes (top, bottom, left, right edges)
-  or a single hollow rectangle — four thin rects is simplest with existing helpers
-- Tag all new entities `CanvasEntity` so they are cleaned up on exit
-- Do NOT change game code, other editor files, or the sequence screen
+- Files: `src/playing/particles.rs` (new function), `src/playing/ui.rs` (`update_score_bar`)
+- `spawn_celebration_burst` signature matches `spawn_smoke_burst` for consistency
+- The `threshold_reached` flag on `LevelScoreBar` (added in STORY-025) prevents re-firing
+- Do NOT change `tick_particles`, smoke burst, or any other system
 
 #### Result
-Added `FRAME_HW=256`, `FRAME_HH=384`, `FRAME_COLOR` constants to
-`canvas_screen.rs`. In `setup_canvas`, spawned four thin (2 px) `Rectangle`
-meshes as the top/bottom/left/right edges of the 512×768 game frame at z=−0.1,
-plus a small "game frame" text label at the top-left corner. All tagged
-`CanvasEntity` for automatic cleanup. Builds clean.
+<!-- Agent fills this in when done -->
 
 ---
 
-### STORY-023: Fix floor position in level editor to match the game
+### STORY-027: Larger eyes proportional to block size, add eyebrows
 
-**status:** done
+**status:** pending
 **priority:** medium
 
 #### What
-The editor draws a ground line at `GROUND_Y = −200`. In the game, the ground
-physics body is positioned at `Transform::from_xyz(0.0, GROUND_Y − GROUND_HALF_HEIGHT * 2.0, 0.0)`
-with half-height `GROUND_HALF_HEIGHT = 10`, so the **top surface of the game
-ground** is at `y = (GROUND_Y − GROUND_HALF_HEIGHT * 2.0) + GROUND_HALF_HEIGHT`
-= `GROUND_Y − GROUND_HALF_HEIGHT` = **−210**.
+Two improvements to block face generation in `src/playing/faces.rs`:
 
-The editor line at −200 is 10 units above where blocks actually land, causing
-placed blocks to appear to float or clip into the ground when previewed in-game.
+**1. Remove the hard 52 px eye-size cap**
+Currently `face_unit = ph.min(pw).min(52.0).max(12.0)`. Change the upper cap from
+`52.0` to `100.0` so that large blocks can have proportionally larger eyes and mouths.
 
-Fix: move the editor ground line from `GROUND_Y` to `GROUND_Y − GROUND_HALF_HEIGHT`
-(i.e. `−210`). Import `GROUND_HALF_HEIGHT` from `single_button_game::constants`
-alongside `GROUND_Y`.
+**2. Add eyebrows**
+Spawn two eyebrow entities per face (left and right). Each eyebrow is a flat dark
+ellipse (scaled circle) above the corresponding eye:
+- Width: `eye_r * 2.2`, Height: `eye_r * 0.32`
+- Y position: `eye_y + eye_r * 1.55` (above the eye white)
+- X position: `±eye_x` (same x as the eye centres)
+- z: eye z + 0.05 (drawn in front of eyes)
+- Color: dark `srgba(0.07, 0.07, 0.10, 0.92)` (same as pupils)
+
+Eyebrow rotation (angle in radians, applied via `Quat::from_rotation_z`):
+| State    | Left brow                | Right brow              |
+|----------|--------------------------|-------------------------|
+| falling  | `+0.30` (outer up = fear)| `-0.30`                 |
+| grey (0) | `-0.18` (inner up = angry)| `+0.18`                |
+| yellow(1)| `0.0` (flat = neutral)   | `0.0`                  |
+| green (2)| `+0.18` (outer up = happy)| `-0.18`                |
+| tilted   | `0.0` (hidden with eye whites) — set scale to ZERO |
+
+Add `left_brow: Entity` and `right_brow: Entity` fields to `BlockFace`.
+Update `update_faces` to set scale and rotation for both brow entities each frame
+(same pattern as left_eye / right_eye).
 
 #### Why
-Accurate floor position lets designers place blocks so their bottom edge rests
-exactly on the ground surface, matching what they see in play.
+Small blocks already have small faces; large blocks should look proportionally bigger
+and more expressive. Eyebrows greatly improve readability of emotional expression.
 
 #### Acceptance criteria
-- [ ] The ground line in the editor canvas is drawn at y = −210 (not −200)
+- [ ] A large block (≥ 100 px in either dimension) has noticeably larger eyes than before
+- [ ] Every block has two visible eyebrows above the eyes
+- [ ] Brow angle changes with score tier (angry grey, neutral yellow, happy green)
+- [ ] Brows tilt to fear angle while block is falling
+- [ ] Brows disappear (scale zero) when block is tilted (X-eyes state)
 - [ ] `cargo build` compiles clean
-- [ ] No other visual or behavioural changes
 
 #### Context & constraints
-- Only `src/bin/level_editor/canvas_screen.rs` → `setup_canvas` needs to change
-  (the ground `Transform::from_xyz(0.0, GROUND_Y, 0.0)` line)
-- `GROUND_HALF_HEIGHT` is already exported from `single_button_game::constants`;
-  update the import at the top of the file to include it
-- Do NOT touch game code or the sequence screen
+- Only `src/playing/faces.rs` changes
+- The `sp` closure already spawns unit-circle children — reuse it for brows
+- Brows are updated in `update_faces` alongside left_eye / right_eye, same query
+- Do NOT touch `input.rs`, physics, particles, or other files
 
 #### Result
-Added `GROUND_HALF_HEIGHT` to the constants import in `canvas_screen.rs`.
-Changed the ground line spawn from `GROUND_Y` (−200) to
-`GROUND_Y − GROUND_HALF_HEIGHT` (−210), matching the game's physics ground
-top surface. Builds clean.
-
----
-
-### STORY-024: Remove adjacent-level preview overlays from the level editor
-
-**status:** done
-**priority:** low
-
-#### What
-The editor canvas shows ghost blocks for the previous and next levels (orange and
-blue transparent overlays). These were designed for "tower mode" — a feature that
-has since been removed. The overlays are now meaningless and add visual clutter.
-
-Remove:
-1. The `prev_slots` / `next_slots` fields from `CanvasState`
-   (`src/bin/level_editor/state.rs`)
-2. All code that populates these fields (likely in the sequence screen or
-   wherever `CanvasState` is initialised)
-3. The overlay-spawning loops in `setup_canvas`
-   (`src/bin/level_editor/canvas_screen.rs`)
-4. The `OverlayBlock` component and `PREV_COLOR` / `NEXT_COLOR` / `OVERLAY_GAP`
-   constants (if they are no longer used)
-5. The bounding-box calculations (`current_bottom`, `current_top`,
-   `prev_y_offset`, `next_y_offset`) that existed solely to position the overlays
-
-#### Why
-The overlays reference removed tower-mode behaviour and create confusion about
-which blocks belong to the level being edited.
-
-#### Acceptance criteria
-- [ ] No orange or blue ghost blocks appear in the editor canvas
-- [ ] `CanvasState` no longer has `prev_slots` / `next_slots` fields
-- [ ] `cargo build` compiles clean with no unused-variable warnings
-- [ ] The rest of the editor (block placement, save, sequence screen) is unaffected
-
-#### Context & constraints
-- Files to change: `src/bin/level_editor/state.rs`,
-  `src/bin/level_editor/canvas_screen.rs`
-- Also check `src/bin/level_editor/sequence_screen.rs` and `main.rs` for any
-  code that writes to `prev_slots` / `next_slots` — remove those too
-- Do NOT touch the game code or `src/playing/`
-
-#### Result
-Removed `prev_slots`/`next_slots` fields and their `Default` initialisers from
-`CanvasState` (`state.rs`). Removed the `load_adjacent_blueprints` call and
-corresponding field assignments from `sequence_screen.rs`. Deleted the
-`load_adjacent_blueprints` function from `file_io.rs`. Removed `PREV_COLOR`,
-`NEXT_COLOR`, `OVERLAY_GAP` constants, the `OverlayBlock` component, and all
-bounding-box / overlay-spawning code from `canvas_screen.rs` (`setup_canvas`).
-No warnings. Builds clean.
+<!-- Agent fills this in when done -->
 
 ---
 

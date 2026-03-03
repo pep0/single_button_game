@@ -62,6 +62,19 @@ pub struct ProductionState {
 }
 
 #[derive(Resource)]
+pub struct LevelScoreBar {
+    pub accumulated: i32,
+    pub target: i32,
+    pub threshold_reached: bool,
+}
+
+impl Default for LevelScoreBar {
+    fn default() -> Self {
+        Self { accumulated: 0, target: 1, threshold_reached: false }
+    }
+}
+
+#[derive(Resource)]
 pub struct ProducedDimensions {
     pub widths: Vec<f32>,
     pub heights: Vec<f32>,
