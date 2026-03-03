@@ -17,6 +17,7 @@ pub fn check_settle(
     mut build_state: ResMut<BuildState>,
     blueprint: Res<Blueprint>,
     mut produced: ResMut<ProducedDimensions>,
+    level_score: Res<LevelScoreBar>,
     block_query: Query<(&TowerBlock, &Transform, Option<&Sleeping>, &LinearVelocity)>,
     mut next_state: ResMut<NextState<GameState>>,
     testplay: Option<Res<EditorTestPlay>>,
@@ -114,6 +115,22 @@ pub fn check_settle(
         }
     }
 
+    // Score-bar threshold check: require accumulated >= target (1 point per block minimum)
+    if level_score.accumulated < level_score.target {
+        commands.insert_resource(FailureReason {
+            message: format!(
+                "Score too low ({}/{} points)",
+                level_score.accumulated, level_score.target
+            ),
+        });
+        if testplay.is_some() {
+            next_state.set(GameState::Editor);
+        } else {
+            next_state.set(GameState::Failed);
+        }
+        return;
+    }
+
     // Store scores
     produced.scores = scores;
 
@@ -129,6 +146,8 @@ pub fn check_per_block_settle(
     blueprint: Res<Blueprint>,
     produced: Res<ProducedDimensions>,
     mut level_score: ResMut<LevelScoreBar>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut block_query: Query<(
         &TowerBlock,
@@ -174,16 +193,45 @@ pub fn check_per_block_settle(
             let tier: u8 = if score >= 0.80 { 2 } else if score >= 0.60 { 1 } else { 0 };
             level_score.accumulated += tier as i32;
 
-            let (r, g, b, font_size) = score_visuals(score);
+            // Update green streak
+            if tier == 2 {
+                level_score.streak += 1;
+            } else {
+                level_score.streak = 0;
+            }
+
             let spawn_y = (transform.translation.y + ph / 2.0 + 10.0).min(popup_y_max);
-            commands.spawn((
-                PlayingEntity,
-                ScorePopup { age: 0.0, base_r: r, base_g: g, base_b: b },
-                Text2d::new(format!("{:.0}%", score * 100.0)),
-                TextFont { font_size, ..default() },
-                TextColor(Color::srgba(r, g, b, 1.0)),
-                Transform::from_xyz(transform.translation.x, spawn_y, 2.0),
-            ));
+
+            if score >= 0.95 {
+                // PERFECT tier: gold star popup + celebration burst
+                let (r, g, b) = (1.0f32, 0.82f32, 0.20f32);
+                commands.spawn((
+                    PlayingEntity,
+                    ScorePopup { age: 0.0, base_r: r, base_g: g, base_b: b },
+                    Text2d::new(format!("\u{2736} PERFECT  {:.0}%", score * 100.0)),
+                    TextFont { font_size: 34.0, ..default() },
+                    TextColor(Color::srgba(r, g, b, 1.0)),
+                    Transform::from_xyz(transform.translation.x, spawn_y, 2.0),
+                ));
+                particles::spawn_celebration_burst(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    transform.translation.x,
+                    transform.translation.y + ph / 2.0,
+                    i as u32,
+                );
+            } else {
+                let (r, g, b, font_size) = score_visuals(score);
+                commands.spawn((
+                    PlayingEntity,
+                    ScorePopup { age: 0.0, base_r: r, base_g: g, base_b: b },
+                    Text2d::new(format!("{:.0}%", score * 100.0)),
+                    TextFont { font_size, ..default() },
+                    TextColor(Color::srgba(r, g, b, 1.0)),
+                    Transform::from_xyz(transform.translation.x, spawn_y, 2.0),
+                ));
+            }
             timer.popup_shown = true;
         }
     }
