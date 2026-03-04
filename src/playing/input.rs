@@ -65,6 +65,7 @@ pub fn slot_oscillation(
 
 pub fn production_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     time: Res<Time>,
     mut slot_state: ResMut<SlotState>,
     mut production: ResMut<ProductionState>,
@@ -91,7 +92,11 @@ pub fn production_input(
     let target_slot = &blueprint.slots[build_state.current_index];
     let width = slot_state.locked_width.unwrap_or(slot_state.current_width);
 
-    if keyboard.just_pressed(KeyCode::Space) && !production.is_producing {
+    let just_pressed = keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed();
+    let held = keyboard.pressed(KeyCode::Space) || touches.iter().next().is_some();
+    let just_released = keyboard.just_released(KeyCode::Space) || touches.any_just_released();
+
+    if just_pressed && !production.is_producing {
         slot_state.locked_width = Some(slot_state.current_width);
         production.is_producing = true;
         production.current_height = 2.0;
@@ -108,7 +113,7 @@ pub fn production_input(
         ));
     }
 
-    if keyboard.pressed(KeyCode::Space) && production.is_producing {
+    if held && production.is_producing {
         let new_height = (production.current_height + GROW_SPEED * time.delta_secs()).min(MAX_HEIGHT);
         production.current_height = new_height;
         if new_height >= MAX_HEIGHT {
@@ -122,7 +127,7 @@ pub fn production_input(
         }
     }
 
-    if (keyboard.just_released(KeyCode::Space) || production.auto_drop) && production.is_producing {
+    if (just_released || production.auto_drop) && production.is_producing {
         production.is_producing = false;
         let produced_width = width;
         let produced_height = production.current_height;

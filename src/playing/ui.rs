@@ -163,6 +163,7 @@ pub fn animate_score_popups(
 pub fn animate_level_complete(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     mut build_state: ResMut<BuildState>,
     mut overlay_query: Query<(&mut TextColor, &mut Transform), With<LevelCompleteOverlay>>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<LevelCompleteOverlay>)>,
@@ -183,8 +184,8 @@ pub fn animate_level_complete(
     build_state.level_complete_timer += time.delta_secs();
     let mut t = build_state.level_complete_timer;
 
-    // Space skips the remaining wait
-    if keyboard.just_pressed(KeyCode::Space) {
+    // Space or tap skips the remaining wait
+    if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
         t = TOTAL;
         build_state.level_complete_timer = TOTAL;
     }

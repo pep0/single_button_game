@@ -38,9 +38,10 @@ fn setup_menu(
 
 fn menu_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Space) {
+    if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
         next_state.set(GameState::Playing);
     }
     if keyboard.just_pressed(KeyCode::KeyE) {
