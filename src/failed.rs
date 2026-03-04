@@ -75,9 +75,9 @@ fn setup_failed(
     ));
 
     let prompt = if score.lives > 0 {
-        "Press SPACE to retry"
+        "Press SPACE or tap to retry"
     } else {
-        "Game Over!  Press SPACE to return to menu"
+        "Game Over!  Press SPACE or tap to return to menu"
     };
     commands.spawn((
         FailedEntity,
@@ -93,10 +93,11 @@ fn setup_failed(
 
 fn failed_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
     mut score: ResMut<Score>,
 ) {
-    if keyboard.just_pressed(KeyCode::Space) {
+    if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
         if score.lives > 0 {
             // Retry same level — keep score.round unchanged
             next_state.set(GameState::Playing);
