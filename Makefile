@@ -4,7 +4,7 @@ help:           ## Show this help
 	@awk 'BEGIN{FS=":.*##"} /^[a-zA-Z_-]+:.*##/{printf "  %-14s %s\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 run:            ## Run the game (dev build)
-	cargo run
+	cargo run --bin single_button_game
 
 editor:         ## Run the level editor (dev build)
 	cargo run --bin level_editor

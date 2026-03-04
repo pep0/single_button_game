@@ -1,0 +1,41 @@
+image: rust:latest
+
+stages:
+  - deploy
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo-cache
+  TRUNK_VERSION: "0.21.14"
+  WASM_BINDGEN_VERSION: "0.2.108"
+
+cache:
+  key: rust-wasm-$CI_COMMIT_REF_SLUG
+  paths:
+    - .cargo-cache/registry
+    - target/
+
+pages:
+  stage: deploy
+  script:
+    # Install wasm target
+    - rustup target add wasm32-unknown-unknown
+
+    # Install pinned trunk
+    - curl -sSL https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz
+        | tar -xz -C /usr/local/bin
+
+    # Install wasm-bindgen-cli pinned to match Cargo.lock
+    - cargo install wasm-bindgen-cli --version $WASM_BINDGEN_VERSION --locked
+
+    # Build — public-url must match the GitLab Pages subdirectory path
+    - trunk build --release --public-url /$CI_PROJECT_NAME/
+
+    # GitLab Pages serves from public/
+    - mv dist public
+
+  artifacts:
+    paths:
+      - public
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
