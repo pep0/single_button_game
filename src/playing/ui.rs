@@ -338,6 +338,38 @@ pub fn update_streak_text(
     }
 }
 
+/// Score display in the top-right corner of the viewport.
+pub fn update_score_text(
+    shake: Res<ScreenShake>,
+    level_score: Res<LevelScoreBar>,
+    windows: Query<&Window>,
+    mut text_query: Query<(&mut Text2d, &mut Transform), (With<ScoreText>, Without<ScoreTextShadow>)>,
+    mut shadow_query: Query<(&mut Text2d, &mut Transform), (With<ScoreTextShadow>, Without<ScoreText>)>,
+) {
+    let half_w = windows.single().map(|w| w.width() / 2.0).unwrap_or(256.0);
+    let half_h = windows.single().map(|w| w.height() / 2.0).unwrap_or(384.0);
+
+    let label = format!("Score: {}/{}", level_score.accumulated, level_score.target);
+    // Position anchor in top-right — with TOP_RIGHT anchor the transform is the top-right corner
+    let text_x = half_w - 8.0;
+    let text_y = shake.base_camera_y + (half_h - 8.0).min(252.0);
+
+    if let Ok((mut text, mut transform)) = text_query.single_mut() {
+        text.0 = label.clone();
+        transform.translation.x = text_x;
+        transform.translation.y = text_y;
+        transform.translation.z = 2.0;
+    }
+
+    // Shadow offset by 1.5 px down-right
+    if let Ok((mut text, mut transform)) = shadow_query.single_mut() {
+        text.0 = label;
+        transform.translation.x = text_x + 1.5;
+        transform.translation.y = text_y - 1.5;
+        transform.translation.z = 1.9;
+    }
+}
+
 /// Pulsing "Evaluating..." text shown while the physics settle check is running.
 pub fn update_evaluating_indicator(
     time: Res<Time>,

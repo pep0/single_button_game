@@ -1,5 +1,6 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 
 use crate::blueprint::{self, Blueprint};
 use crate::constants::*;
@@ -186,6 +187,26 @@ pub fn setup_playing(
         TextFont { font_size: 14.0, ..default() },
         TextColor(Color::srgba(1.0, 0.82, 0.20, 0.0)),
         Transform::from_xyz(BAR_X, 0.0, 1.8),
+    ));
+
+    // Score display (top-right) — drop shadow first (lower z), then main text
+    commands.spawn((
+        PlayingEntity,
+        ScoreTextShadow,
+        Text2d::new("Score: 0"),
+        TextFont { font_size: 22.0, ..default() },
+        TextColor(Color::srgba(0.0, 0.0, 0.0, 0.75)),
+        Transform::from_xyz(0.0, 0.0, 1.9),
+        Anchor::TOP_RIGHT,
+    ));
+    commands.spawn((
+        PlayingEntity,
+        ScoreText,
+        Text2d::new("Score: 0"),
+        TextFont { font_size: 22.0, ..default() },
+        TextColor(Color::srgba(1.0, 1.0, 1.0, 0.95)),
+        Transform::from_xyz(0.0, 0.0, 2.0),
+        Anchor::TOP_RIGHT,
     ));
 
     // Init resources — insert/replace Blueprint so Failed/settle can read it.

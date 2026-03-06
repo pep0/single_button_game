@@ -45,6 +45,7 @@ impl Plugin for PlayingPlugin {
                     ui::update_hearts,
                     ui::update_score_bar,
                     ui::update_streak_text,
+                    ui::update_score_text,
                     particles::tick_particles,
                     faces::update_faces,
                 )
