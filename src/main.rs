@@ -7,6 +7,7 @@ mod playing;
 mod scoring;
 mod state;
 mod stats;
+mod wasm_audio;
 
 use avian2d::prelude::*;
 use bevy::{prelude::*, window::WindowResolution};
@@ -45,6 +46,7 @@ fn main() {
             failed::FailedPlugin,
             stats::StatsPlugin,
             editor::EditorPlugin,
+            wasm_audio::WasmAudioPlugin,
         ))
         .run();
 }

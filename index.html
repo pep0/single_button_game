@@ -13,6 +13,65 @@
         box-sizing: border-box; }
       canvas { display: block; touch-action: none; }
     </style>
+    <script>
+      // Fix Web Audio autoplay policy for Chrome and Safari on iOS.
+      //
+      // Browsers suspend every AudioContext until a user gesture (touch or
+      // key press) occurs.  Bevy's audio backend (cpal/rodio) creates its
+      // AudioContext during WASM initialisation, before any user gesture,
+      // so the context starts in the "suspended" state and the first sounds
+      // are silently dropped.
+      //
+      // Strategy:
+      //   1. Wrap the AudioContext constructor so every created instance is
+      //      tracked in `AudioContext._instances` (a public static array).
+      //   2. On each pointer/touch/key event call `.resume()` on all
+      //      suspended instances.
+      //   3. The Rust/WASM side (src/wasm_audio.rs) can also call the same
+      //      resume logic via js_sys::eval on the frame of the first
+      //      Bevy-detected user input, providing a belt-and-suspenders
+      //      guarantee that audio is un-muted on the exact input frame.
+      (function () {
+        var OriginalCtx = window.AudioContext || window.webkitAudioContext;
+        if (!OriginalCtx) return;
+
+        // Replacement constructor — delegates to the real one and tracks
+        // every instance in a publicly accessible array.
+        function PatchedAudioContext(options) {
+          var ctx = options
+            ? new OriginalCtx(options)
+            : new OriginalCtx();
+          PatchedAudioContext._instances.push(ctx);
+          return ctx;
+        }
+        PatchedAudioContext._instances = [];
+        PatchedAudioContext.prototype = OriginalCtx.prototype;
+
+        // Copy any static properties (e.g. AudioContext.MAX_CHANNEL_COUNT).
+        Object.keys(OriginalCtx).forEach(function (key) {
+          try { PatchedAudioContext[key] = OriginalCtx[key]; } catch (_) {}
+        });
+
+        window.AudioContext = PatchedAudioContext;
+        if (window.webkitAudioContext) {
+          window.webkitAudioContext = PatchedAudioContext;
+        }
+
+        function resumeAll() {
+          PatchedAudioContext._instances.forEach(function (ctx) {
+            if (ctx.state === "suspended") {
+              ctx.resume();
+            }
+          });
+        }
+
+        // Listen on all common user-gesture event types.
+        // capture:true ensures we fire before the game canvas consumes the event.
+        ["pointerdown", "touchstart", "keydown", "mousedown"].forEach(function (type) {
+          window.addEventListener(type, resumeAll, { capture: true, passive: true });
+        });
+      })();
+    </script>
   </head>
   <body>
     <link data-trunk rel="rust" data-bin="single_button_game"/>
