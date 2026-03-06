@@ -222,7 +222,7 @@ Builds clean.
 
 ### STORY-001: Example — Add score display to HUD
 
-**status:** pending
+**status:** done
 **priority:** low
 
 #### What
@@ -245,4 +245,187 @@ a reason to keep optimizing.
 - Font assets are in `assets/`
 
 #### Result
-<!-- Agent fills this in when done -->
+Added `ScoreText` and `ScoreTextShadow` marker components. Spawned a
+"Score: X/Y" text entity with drop shadow in top-right corner during
+`setup_playing`. `update_score_text` system reads `LevelScoreBar` and
+repositions text each frame. Resets on new level. Builds clean.
+
+---
+
+### STORY-031: Per-block color variation within score tier
+
+**status:** done
+**priority:** medium
+
+#### What
+Each block currently renders with a flat color determined solely by its score tier
+(green / yellow / grey). Add per-block hue/saturation/brightness variation so every
+block looks individually distinct while still reading as its tier.
+
+The block's "mouth mask" (the crescent mesh that gives the impression of a smile or
+frown) must also be tinted with the same randomised color so face and body stay
+visually coherent.
+
+#### Why
+All blocks of the same tier look identical, making the tower look repetitive.
+Per-block variation adds visual richness without breaking the semantic color coding.
+
+#### Acceptance criteria
+- [ ] Each spawned block is assigned a unique color at spawn time (not per-level)
+- [ ] The color stays within the block's tier palette:
+  - Green tier: hue roughly 100-160°, saturation 45-75%, lightness 40-65%
+  - Yellow tier: hue roughly 40-65°, saturation 60-85%, lightness 45-65%
+  - Grey tier: desaturated, lightness 35-60%, slight hue drift allowed (±20°)
+- [ ] The mouth mask mesh is tinted to match the block's body color
+- [ ] Color is fixed at spawn — it does not change while the block falls or settles
+- [ ] No visible seam between block body and mouth mask
+
+#### Context & constraints
+- Block spawning: `src/playing/spawn.rs` (or wherever `BlockSlot` entities are
+  created with their `ColorMaterial`)
+- Face/mouth rendering: `src/playing/faces.rs` — the mouth mask is a separate child
+  mesh entity; its `ColorMaterial` must be updated at spawn alongside the body
+- Score tier is available on the block component (0 = grey, 1 = yellow, 2 = green)
+- Use `rand` (already a dependency) for the per-block randomisation; seed from
+  Bevy's `rand` resource or a simple thread_rng
+- Do not change eye or pupil colors — those stay dark
+
+#### Result
+Replaced fixed block colors with HSL-based per-block variation using
+deterministic LCG hash. Each tier generates colors within its palette range.
+Mouth mask now receives the actual body color to avoid seams. Border color
+auto-derived by darkening fill 40%. Builds clean.
+
+---
+
+### STORY-032: Phone viewport reference frames in level editor canvas
+
+**status:** done
+**priority:** low
+
+#### What
+The canvas editor currently shows a single dashed outline for the 512 × 768 game
+viewport. Add two additional phone-size reference outlines so designers can see how
+a level will look on real devices:
+
+- **iPhone 17 Pro Max**: 440 × 956 (largest common phone)
+- **iPhone 14**: 390 × 844 (mainstream mid-size phone)
+
+These should appear as subtle outlines only (no fill), clearly distinct from the
+existing game-frame box, with a small label identifying each size.
+
+#### Why
+The game is deployed as a WASM build played on phones. Designers have no visual cue
+for whether their block layouts are visible on real device screen sizes.
+
+#### Acceptance criteria
+- [ ] Two new outline rectangles are drawn in the canvas editor at the correct pixel
+  dimensions (centred on the canvas origin, same as the existing 512 × 768 frame)
+- [ ] Each outline has its own distinct colour (different from the existing
+  `FRAME_COLOR` and from each other) at low opacity so they don't dominate
+- [ ] Each outline has a small label (e.g. `"440 × 956"`) near its top-left corner
+- [ ] Outlines are visible behind blocks but don't interfere with editing
+- [ ] The existing 512 × 768 "game frame" outline and its label are unchanged
+
+#### Context & constraints
+- Canvas setup: `src/bin/level_editor/canvas_screen.rs`, function `setup_canvas`
+- Existing frame drawn with four thin `Rectangle` meshes tagged `CanvasEntity` —
+  follow the same pattern
+- Outlines should be tagged `CanvasEntity` so they are despawned on screen exit
+- Keep z-index below editing elements (use z < 0 like the existing frame at z = -0.1)
+
+#### Result
+Added iPhone 17 Pro Max (440x956, teal) and iPhone 14 (390x844, amber)
+reference outlines to canvas editor. Each uses four thin Rectangle meshes
+tagged CanvasEntity at z=-0.15, with a small label near top-left corner.
+Existing 512x768 frame unchanged. Builds clean.
+
+---
+
+### STORY-033: Fix WASM audio autoplay policy
+
+**status:** done
+**priority:** high
+
+#### What
+Web browsers block audio until the user has interacted with the page. In the WASM
+build the synthesised block sounds may be silently dropped on the first interaction
+because the audio context is still suspended. Fix this so sounds play correctly from
+the first tap/click onward.
+
+#### Why
+Players on mobile and desktop web hear no sound at all if the browser's autoplay
+policy blocks the audio context from starting. This makes the game feel broken.
+
+#### Acceptance criteria
+- [ ] The first block-drop or collision sound plays correctly after the first user
+  interaction (tap or key press) — no silent first interaction
+- [ ] Works in Chrome and Safari on iOS (the most restrictive browsers)
+- [ ] No audible glitch or pop on the first sound
+- [ ] Desktop build is unaffected
+
+#### Context & constraints
+- Audio system: `src/playing/audio.rs` — sounds are synthesised PCM WAV blobs,
+  played via Bevy's `AudioPlayer`
+- Bevy's `WinitPlugin` can resume the audio context on the first `winit` event;
+  check if `ResumeAudio` or a custom JS interop via `wasm-bindgen` is needed
+- The `index.html` may need a one-time event listener that calls
+  `AudioContext.resume()` on the first `pointerdown` or `keydown` event, bridged
+  to Bevy if Bevy doesn't handle it automatically
+- `cfg\!(target_arch = "wasm32")` can be used to gate WASM-only code
+- Do not add new audio files; the synthesised sounds must continue working
+
+#### Result
+JS patch in index.html wraps AudioContext constructor, tracks all instances,
+and resumes suspended ones on pointerdown/touchstart/keydown/mousedown.
+Rust-side WasmAudioPlugin (src/wasm_audio.rs) provides backup via js_sys::eval
+on first Bevy-detected input. Added web-sys AudioContext/AudioContextState
+features, wasm-bindgen, js-sys deps. Desktop unaffected. Builds clean.
+
+---
+
+### STORY-034: Ensure all text fits the screen on small viewports
+
+**status:** done
+**priority:** medium
+
+#### What
+Several text elements in the game are positioned or sized with fixed world-space
+values designed for a 512 × 768 viewport. On smaller phones (390 × 844 and below)
+or in landscape orientation some text overflows or is clipped. Audit all text and
+make it fit.
+
+#### Why
+The WASM build is played on phones. Unreadable or missing text degrades the
+experience significantly on small screens.
+
+#### Acceptance criteria
+- [ ] **In-game HUD**: level name + block counter text does not overflow the screen
+  width on a 390 px wide viewport; truncate or wrap if needed
+- [ ] **Level-complete overlay**: 52 pt font may need to scale down on narrow screens
+  so it fits within the viewport width
+- [ ] **Failed screen**: all text lines visible and readable at 390 × 844 and
+  375 × 667; long prompt text is wrapped
+- [ ] **Stats screen**: all text fits within the screen width with the 460 px wrap
+  constraint adjusted if the viewport is narrower than 460 px
+- [ ] **Level editor** (Sequence and Canvas screens): header, hints, HUD line, and
+  status text remain readable and on-screen at common desktop resolutions
+- [ ] Text is never clipped by the screen edge (a small inset margin is acceptable)
+
+#### Context & constraints
+- In-game text: `src/playing/ui.rs`, `src/playing/setup.rs`, `src/failed.rs`,
+  `src/stats.rs`
+- Level editor text: `src/bin/level_editor/sequence_screen.rs`,
+  `src/bin/level_editor/canvas_screen.rs`
+- Query the primary `Window` for `width()` / `height()` (pattern already used in
+  `update_hearts` and `update_score_bar` after STORY responsive-HUD work)
+- `TextBounds::new_horizontal(width)` can be used to wrap text; combine with
+  `TextLayout` for alignment
+- Keep font sizes readable — prefer clamping position/wrapping width over shrinking
+  fonts below ~14 pt
+
+#### Result
+Audited all text across HUD, failed screen, stats screen, level-complete
+overlay, and both editor screens. Added viewport-aware font scaling (min ~14pt),
+TextBounds wrapping based on actual window width, and 16px inset margins.
+Stats screen replaced static WRAP_WIDTH with runtime value. Builds clean.
