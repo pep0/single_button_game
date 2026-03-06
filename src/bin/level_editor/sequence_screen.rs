@@ -11,7 +11,6 @@ const NORMAL_COLOR: Color = Color::srgb(0.6, 0.6, 0.6);
 const CURSOR_COLOR: Color = Color::srgb(0.2, 0.8, 0.9);
 const GRABBED_COLOR: Color = Color::srgb(0.9, 0.7, 0.2);
 const STATUS_COLOR: Color = Color::srgb(0.9, 0.9, 0.5);
-const TITLE_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 const HINT_COLOR: Color = Color::srgb(0.45, 0.45, 0.45);
 const INPUT_COLOR: Color = Color::srgb(0.4, 0.9, 0.5);
 
@@ -63,13 +62,20 @@ fn setup_sequence_screen(
             state.blueprints[i] = file_io::load_level_name(&path);
         }
     }
-    // Title
+    // Header: app name (muted) + screen name (accent)
     commands.spawn((
         SequenceEntity,
-        Text2d::new("Tower Stacker — Level Sequence Editor"),
-        TextFont { font_size: 22.0, ..default() },
-        TextColor(TITLE_COLOR),
-        Transform::from_xyz(0.0, 330.0, 0.5),
+        Text2d::new("TOWER STACKER"),
+        TextFont { font_size: 11.0, ..default() },
+        TextColor(HINT_COLOR),
+        Transform::from_xyz(0.0, 352.0, 0.5),
+    ));
+    commands.spawn((
+        SequenceEntity,
+        Text2d::new("SEQUENCE EDITOR"),
+        TextFont { font_size: 26.0, ..default() },
+        TextColor(CURSOR_COLOR),
+        Transform::from_xyz(0.0, 326.0, 0.5),
     ));
 
     // Controls hint

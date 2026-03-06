@@ -139,10 +139,26 @@ fn setup_canvas(
         Transform::from_xyz( FRAME_HW, 0.0, -0.1)));
     // label near top-left corner of the frame
     commands.spawn((CanvasEntity,
-        Text2d::new("game frame"),
+        Text2d::new("512 × 768"),
         TextFont { font_size: 11.0, ..default() },
         TextColor(FRAME_COLOR),
         Transform::from_xyz(-FRAME_HW + 4.0, FRAME_HH - 10.0, -0.1)));
+
+    // Header: app name (muted) + screen name (accent)
+    commands.spawn((
+        CanvasEntity,
+        Text2d::new("TOWER STACKER"),
+        TextFont { font_size: 11.0, ..default() },
+        TextColor(HINT_COLOR),
+        Transform::from_xyz(0.0, 422.0, 0.5),
+    ));
+    commands.spawn((
+        CanvasEntity,
+        Text2d::new("CANVAS EDITOR"),
+        TextFont { font_size: 26.0, ..default() },
+        TextColor(EDIT_BLOCK_COLOR),
+        Transform::from_xyz(0.0, 396.0, 0.5),
+    ));
 
     // HUD text — top-left corner
     commands.spawn((

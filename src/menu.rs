@@ -19,17 +19,24 @@ fn setup_menu(
     mut commands: Commands,
     mut camera_query: Query<&mut Transform, With<Camera2d>>,
     asset_server: Res<AssetServer>,
+    windows: Query<&Window>,
 ) {
     // Reset camera position
     if let Ok(mut cam_t) = camera_query.single_mut() {
         cam_t.translation.y = 0.0;
     }
 
+    let (w, h) = windows.single()
+        .map(|win| (win.width(), win.height()))
+        .unwrap_or((512.0, 768.0));
+    let scale = (w / 512.0).max(h / 768.0);
+    let size = Vec2::new(512.0 * scale, 768.0 * scale);
+
     commands.spawn((
         MenuText,
         Sprite {
             image: asset_server.load("images/title_screen.png"),
-            custom_size: Some(Vec2::new(512.0, 768.0)),
+            custom_size: Some(size),
             ..default()
         },
         Transform::from_xyz(0.0, 0.0, 0.0),

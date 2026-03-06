@@ -228,12 +228,16 @@ pub fn animate_level_complete(
 pub fn update_hearts(
     shake: Res<ScreenShake>,
     score: Res<Score>,
+    windows: Query<&Window>,
     mut heart_query: Query<(&HeartIcon, &mut Transform, &MeshMaterial2d<ColorMaterial>)>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
+    let half_w = windows.single().map(|w| w.width() / 2.0).unwrap_or(256.0);
+    let half_h = windows.single().map(|w| w.height() / 2.0).unwrap_or(384.0);
+    let heart_y = shake.base_camera_y + (half_h - 20.0).min(255.0);
     for (heart, mut transform, mat_handle) in &mut heart_query {
-        transform.translation.x = -230.0 + heart.0 as f32 * 22.0;
-        transform.translation.y = shake.base_camera_y + 255.0;
+        transform.translation.x = -(half_w - 16.0) + heart.0 as f32 * 22.0;
+        transform.translation.y = heart_y;
         if let Some(mat) = materials.get_mut(&mat_handle.0) {
             mat.color = if heart.0 < score.lives {
                 Color::srgb(0.82, 0.30, 0.28)
@@ -245,10 +249,10 @@ pub fn update_hearts(
 }
 
 const BAR_MAX_H: f32 = 160.0;
-const BAR_X: f32 = 234.0;
 
 pub fn update_score_bar(
     shake: Res<ScreenShake>,
+    windows: Query<&Window>,
     mut level_score: ResMut<LevelScoreBar>,
     mut bg_query: Query<&mut Transform, With<ScoreBarBg>>,
     mut fill_query: Query<
@@ -263,18 +267,19 @@ pub fn update_score_bar(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
+    let bar_x = windows.single().map(|w| w.width() / 2.0 - 16.0).unwrap_or(234.0);
     let center_y = shake.base_camera_y;
     let bg_bottom_y = center_y - BAR_MAX_H / 2.0;
 
     // Reposition background
     if let Ok(mut t) = bg_query.single_mut() {
-        t.translation.x = BAR_X;
+        t.translation.x = bar_x;
         t.translation.y = center_y;
     }
 
     // Reposition threshold line at top of background
     if let Ok(mut t) = thresh_query.single_mut() {
-        t.translation.x = BAR_X;
+        t.translation.x = bar_x;
         t.translation.y = bg_bottom_y + BAR_MAX_H;
     }
 
@@ -287,7 +292,7 @@ pub fn update_score_bar(
             &mut commands,
             &mut meshes,
             &mut materials,
-            BAR_X,
+            bar_x,
             burst_y,
             level_score.accumulated as u32,
         );
@@ -297,7 +302,7 @@ pub fn update_score_bar(
     let ratio = (level_score.accumulated as f32 / level_score.target as f32).clamp(0.0, 1.0);
     let fill_h = (ratio * BAR_MAX_H).max(1.0);
     if let Ok((mut t, mat_handle)) = fill_query.single_mut() {
-        t.translation.x = BAR_X;
+        t.translation.x = bar_x;
         t.translation.y = bg_bottom_y + fill_h / 2.0;
         t.scale = Vec3::new(1.0, fill_h, 1.0);
 
@@ -314,14 +319,16 @@ pub fn update_score_bar(
 pub fn update_streak_text(
     time: Res<Time>,
     shake: Res<ScreenShake>,
+    windows: Query<&Window>,
     level_score: Res<LevelScoreBar>,
     mut query: Query<(&mut Text2d, &mut Transform, &mut TextColor), With<StreakText>>,
 ) {
     let Ok((mut text, mut transform, mut color)) = query.single_mut() else { return };
+    let bar_x = windows.single().map(|w| w.width() / 2.0 - 16.0).unwrap_or(234.0);
 
     if level_score.streak >= 2 {
         text.0 = format!("x{} STREAK", level_score.streak);
-        transform.translation.x = BAR_X;
+        transform.translation.x = bar_x;
         transform.translation.y = shake.base_camera_y - BAR_MAX_H / 2.0 - 18.0;
         let pulse = (time.elapsed_secs() * 4.0).sin() * 0.15 + 0.85;
         color.0 = Color::srgba(1.0, 0.82, 0.20, pulse);
