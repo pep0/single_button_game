@@ -2,6 +2,7 @@ use bevy::ecs::message::MessageReader;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
 use bevy::prelude::*;
+use bevy::text::TextBounds;
 use single_button_game::blueprint::BlockSlot;
 use single_button_game::constants::{GROUND_HALF_HEIGHT, GROUND_Y, SLOT_MAX_WIDTH};
 
@@ -112,11 +113,16 @@ fn setup_canvas(
     mut materials: ResMut<Assets<ColorMaterial>>,
     state: Res<CanvasState>,
     mut camera_query: Query<&mut Transform, With<Camera2d>>,
+    windows: Query<&Window>,
 ) {
     // Reset camera to origin so each level opens centred
     if let Ok(mut cam) = camera_query.single_mut() {
         cam.translation = Vec3::ZERO;
     }
+
+    // Compute a safe wrap width for hint / HUD text with 16 px margin on each side.
+    let viewport_w = windows.single().map(|w| w.width()).unwrap_or(1024.0);
+    let hint_wrap_w = (viewport_w - 32.0).max(400.0);
     // Ground line
     commands.spawn((
         CanvasEntity,
@@ -240,7 +246,7 @@ fn setup_canvas(
         Transform::from_xyz(-520.0, 350.0, 0.5),
     ));
 
-    // Controls hint
+    // Controls hint — wrap so it stays inside the window on any desktop resolution.
     commands.spawn((
         CanvasEntity,
         Text2d::new(
@@ -249,6 +255,8 @@ fn setup_canvas(
         ),
         TextFont { font_size: 13.0, ..default() },
         TextColor(HINT_COLOR),
+        TextBounds::new_horizontal(hint_wrap_w),
+        TextLayout::new(Justify::Center, LineBreak::WordBoundary),
         Transform::from_xyz(0.0, -340.0, 0.5),
     ));
 

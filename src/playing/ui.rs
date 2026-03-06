@@ -99,6 +99,7 @@ pub fn animate_score_popups(
     blueprint: Res<Blueprint>,
     sequence: Res<LevelSequence>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<ScorePopup>)>,
+    windows: Query<&Window>,
 ) {
     let dt = time.delta_secs();
 
@@ -134,6 +135,10 @@ pub fn animate_score_popups(
             .single()
             .map(|t| t.translation.y)
             .unwrap_or(0.0);
+        let viewport_w = windows.single().map(|w| w.width()).unwrap_or(512.0);
+        // Scale font down on narrow viewports; minimum 28pt to stay readable.
+        let overlay_font_size = (52.0 * (viewport_w / 512.0)).clamp(28.0, 52.0);
+        let overlay_wrap_w = (viewport_w - 32.0).max(200.0); // 16 px inset each side
         let level_num = score.round + 1;
         let is_last = level_num >= sequence.entries.len();
         let star = if is_last { "  *" } else { "" };
@@ -146,11 +151,11 @@ pub fn animate_score_popups(
             LevelCompleteOverlay,
             Text2d::new(msg),
             TextFont {
-                font_size: 52.0,
+                font_size: overlay_font_size,
                 ..default()
             },
             TextColor(Color::srgba(0.42, 0.88, 0.62, 0.0)),
-            TextBounds::new_horizontal(460.0),
+            TextBounds::new_horizontal(overlay_wrap_w),
             TextLayout::new(Justify::Center, LineBreak::WordBoundary),
             Transform::from_xyz(0.0, cam_y + 40.0, 10.0),
         ));

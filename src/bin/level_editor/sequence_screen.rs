@@ -2,6 +2,7 @@ use bevy::ecs::message::MessageReader;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
 use bevy::prelude::*;
+use bevy::text::TextBounds;
 
 use crate::file_io;
 use crate::state::{EditorScreen, SeqInput, SequenceEditorState};
@@ -50,7 +51,12 @@ impl Plugin for SequenceScreenPlugin {
 fn setup_sequence_screen(
     mut commands: Commands,
     mut state: ResMut<SequenceEditorState>,
+    windows: Query<&Window>,
 ) {
+    // Compute a safe wrap width with 16 px margin on each side.
+    let viewport_w = windows.single().map(|w| w.width()).unwrap_or(1024.0);
+    let hint_wrap_w = (viewport_w - 32.0).max(400.0);
+
     // Load entries the first time (guards against Bevy OnEnter/Startup ordering)
     if state.entries.is_empty() {
         let entries = file_io::load_sequence();
@@ -78,7 +84,7 @@ fn setup_sequence_screen(
         Transform::from_xyz(0.0, 326.0, 0.5),
     ));
 
-    // Controls hint
+    // Controls hint — wrap so it stays inside the window on any desktop resolution.
     commands.spawn((
         SequenceEntity,
         Text2d::new(
@@ -87,6 +93,8 @@ fn setup_sequence_screen(
         ),
         TextFont { font_size: 13.0, ..default() },
         TextColor(HINT_COLOR),
+        TextBounds::new_horizontal(hint_wrap_w),
+        TextLayout::new(Justify::Center, LineBreak::WordBoundary),
         Transform::from_xyz(0.0, -340.0, 0.5),
     ));
 

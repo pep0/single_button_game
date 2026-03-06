@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::text::TextBounds;
 
 use crate::constants::*;
 use crate::state::{cleanup, cleanup_shared_resources, FailureReason, GameState, Score};
@@ -23,17 +24,27 @@ fn setup_failed(
     mut commands: Commands,
     mut score: ResMut<Score>,
     reason: Option<Res<FailureReason>>,
+    windows: Query<&Window>,
 ) {
     score.lives = score.lives.saturating_sub(1);
+
+    // Compute a safe text wrap width with 16 px margin on each side.
+    let viewport_w = windows.single().map(|w| w.width()).unwrap_or(512.0);
+    let wrap_w = (viewport_w - 32.0).max(200.0);
+    // Scale font sizes proportionally for narrow viewports; keep minimum readable.
+    let scale = (viewport_w / 512.0).min(1.0);
+    let wrap_layout = TextLayout::new(Justify::Center, LineBreak::WordBoundary);
 
     commands.spawn((
         FailedEntity,
         Text2d::new("Structure Collapsed!"),
         TextFont {
-            font_size: 40.0,
+            font_size: (40.0 * scale).max(24.0),
             ..default()
         },
         TextColor(FAIL_COLOR),
+        TextBounds::new_horizontal(wrap_w),
+        wrap_layout,
         Transform::from_xyz(0.0, 80.0, 1.0),
     ));
 
@@ -41,10 +52,12 @@ fn setup_failed(
         FailedEntity,
         Text2d::new(format!("Failed on Level {}", score.round + 1)),
         TextFont {
-            font_size: 24.0,
+            font_size: (24.0 * scale).max(16.0),
             ..default()
         },
         TextColor(TEXT_COLOR),
+        TextBounds::new_horizontal(wrap_w),
+        wrap_layout,
         Transform::from_xyz(0.0, 20.0, 1.0),
     ));
 
@@ -54,10 +67,12 @@ fn setup_failed(
                 FailedEntity,
                 Text2d::new(r.message.clone()),
                 TextFont {
-                    font_size: 18.0,
+                    font_size: (18.0 * scale).max(14.0),
                     ..default()
                 },
                 TextColor(Color::srgba(0.95, 0.55, 0.3, 0.95)),
+                TextBounds::new_horizontal(wrap_w),
+                wrap_layout,
                 Transform::from_xyz(0.0, -15.0, 1.0),
             ));
         }
@@ -67,10 +82,12 @@ fn setup_failed(
         FailedEntity,
         Text2d::new(format!("Lives remaining: {}", score.lives)),
         TextFont {
-            font_size: 20.0,
+            font_size: (20.0 * scale).max(14.0),
             ..default()
         },
         TextColor(Color::srgba(0.85, 0.42, 0.40, 0.95)),
+        TextBounds::new_horizontal(wrap_w),
+        wrap_layout,
         Transform::from_xyz(0.0, -55.0, 1.0),
     ));
 
@@ -83,10 +100,12 @@ fn setup_failed(
         FailedEntity,
         Text2d::new(prompt),
         TextFont {
-            font_size: 22.0,
+            font_size: (22.0 * scale).max(14.0),
             ..default()
         },
         TextColor(TEXT_COLOR),
+        TextBounds::new_horizontal(wrap_w),
+        wrap_layout,
         Transform::from_xyz(0.0, -120.0, 1.0),
     ));
 }

@@ -1,6 +1,7 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
+use bevy::text::TextBounds;
 
 use crate::blueprint::{self, Blueprint};
 use crate::constants::*;
@@ -20,6 +21,7 @@ pub fn setup_playing(
     sequence: Res<LevelSequence>,
     mut next_state: ResMut<NextState<GameState>>,
     mut physics_time: ResMut<Time<Physics>>,
+    windows: Query<&Window>,
 ) {
     physics_time.unpause();
 
@@ -107,15 +109,21 @@ pub fn setup_playing(
     ));
 
     // HUD text (world-space, will be repositioned by camera_follow)
+    // Clamp wrap width to viewport so text never overflows on narrow phones (390px and below).
+    let viewport_w = windows.single().map(|w| w.width()).unwrap_or(512.0);
+    let hud_wrap_w = (viewport_w - 16.0).max(200.0); // 8 px inset each side
+    let hud_font_size = if viewport_w < 400.0 { 16.0 } else { 20.0 };
     commands.spawn((
         PlayingEntity,
         HudText,
         Text2d::new(hud_text(score.round + 1, &blueprint, 1, num_slots)),
         TextFont {
-            font_size: 20.0,
+            font_size: hud_font_size,
             ..default()
         },
         TextColor(TEXT_COLOR),
+        TextBounds::new_horizontal(hud_wrap_w),
+        TextLayout::new(Justify::Center, LineBreak::WordBoundary),
         Transform::from_xyz(0.0, GROUND_Y - 60.0, 1.0),
     ));
 

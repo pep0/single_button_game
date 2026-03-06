@@ -66,23 +66,24 @@ fn save_best(avg: f32) {
     }
 }
 
-const WRAP_WIDTH: f32 = 460.0;
-const WRAP_LAYOUT: TextLayout = TextLayout {
-    justify: Justify::Center,
-    linebreak: LineBreak::WordBoundary,
-};
+fn setup_stats(mut commands: Commands, score: Res<Score>, windows: Query<&Window>) {
+    // Compute a safe text wrap width with 16 px margin on each side.
+    let viewport_w = windows.single().map(|w| w.width()).unwrap_or(512.0);
+    let wrap_w = (viewport_w - 32.0).max(200.0);
+    // Scale font sizes proportionally for narrow viewports; keep minimum readable.
+    let scale = (viewport_w / 512.0).min(1.0);
+    let wrap_layout = TextLayout::new(Justify::Center, LineBreak::WordBoundary);
 
-fn setup_stats(mut commands: Commands, score: Res<Score>) {
     commands.spawn((
         StatsEntity,
         Text2d::new("All Levels Complete!"),
         TextFont {
-            font_size: 40.0,
+            font_size: (40.0 * scale).max(22.0),
             ..default()
         },
         TextColor(SLOT_COLOR),
-        TextBounds::new_horizontal(WRAP_WIDTH),
-        WRAP_LAYOUT,
+        TextBounds::new_horizontal(wrap_w),
+        wrap_layout,
         Transform::from_xyz(0.0, 150.0, 1.0),
     ));
 
@@ -90,12 +91,12 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
         StatsEntity,
         Text2d::new(format!("Levels Completed: {}", score.rounds_played)),
         TextFont {
-            font_size: 26.0,
+            font_size: (26.0 * scale).max(16.0),
             ..default()
         },
         TextColor(TEXT_COLOR),
-        TextBounds::new_horizontal(WRAP_WIDTH),
-        WRAP_LAYOUT,
+        TextBounds::new_horizontal(wrap_w),
+        wrap_layout,
         Transform::from_xyz(0.0, 80.0, 1.0),
     ));
 
@@ -109,12 +110,12 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
         StatsEntity,
         Text2d::new(format!("Average Accuracy: {avg:.0}%")),
         TextFont {
-            font_size: 30.0,
+            font_size: (30.0 * scale).max(18.0),
             ..default()
         },
         TextColor(TOWER_BLOCK_COLOR),
-        TextBounds::new_horizontal(WRAP_WIDTH),
-        WRAP_LAYOUT,
+        TextBounds::new_horizontal(wrap_w),
+        wrap_layout,
         Transform::from_xyz(0.0, 20.0, 1.0),
     ));
 
@@ -127,12 +128,12 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
             StatsEntity,
             Text2d::new(format!("NEW BEST!  (previous: {prev_best:.0}%)")),
             TextFont {
-                font_size: 24.0,
+                font_size: (24.0 * scale).max(16.0),
                 ..default()
             },
             TextColor(Color::srgba(0.38, 0.88, 0.55, 1.0)),
-            TextBounds::new_horizontal(WRAP_WIDTH),
-            WRAP_LAYOUT,
+            TextBounds::new_horizontal(wrap_w),
+            wrap_layout,
             Transform::from_xyz(0.0, -35.0, 1.0),
         ));
     } else if prev_best > 0.01 {
@@ -140,12 +141,12 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
             StatsEntity,
             Text2d::new(format!("Best: {prev_best:.0}%")),
             TextFont {
-                font_size: 20.0,
+                font_size: (20.0 * scale).max(14.0),
                 ..default()
             },
             TextColor(Color::srgba(0.62, 0.62, 0.65, 0.85)),
-            TextBounds::new_horizontal(WRAP_WIDTH),
-            WRAP_LAYOUT,
+            TextBounds::new_horizontal(wrap_w),
+            wrap_layout,
             Transform::from_xyz(0.0, -35.0, 1.0),
         ));
     }
@@ -154,12 +155,12 @@ fn setup_stats(mut commands: Commands, score: Res<Score>) {
         StatsEntity,
         Text2d::new("Press SPACE to return to menu"),
         TextFont {
-            font_size: 22.0,
+            font_size: (22.0 * scale).max(14.0),
             ..default()
         },
         TextColor(TEXT_COLOR),
-        TextBounds::new_horizontal(WRAP_WIDTH),
-        WRAP_LAYOUT,
+        TextBounds::new_horizontal(wrap_w),
+        wrap_layout,
         Transform::from_xyz(0.0, -100.0, 1.0),
     ));
 }
