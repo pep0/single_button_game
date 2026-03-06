@@ -9,10 +9,6 @@ fn prand(seed: u32) -> f32 {
     ((x >> 8) & 0x00FF_FFFF) as f32 / 0x00FF_FFFFu32 as f32
 }
 
-// Fill colours duplicated from input.rs — used to tint the mouth mask.
-const BLOCK_GREEN: Color = Color::srgb(0.38, 0.72, 0.45);
-const BLOCK_GREY:  Color = Color::srgb(0.48, 0.46, 0.52);
-
 #[derive(Component)]
 pub struct BlockFace {
     pub score_tier: u8, // 0=grey, 1=yellow, 2=green
@@ -54,6 +50,9 @@ pub struct BlockFace {
 
 /// Spawns face child entities on a block and returns a `BlockFace` to insert
 /// on the block entity.
+///
+/// `body_color` is the actual fill colour of the block body; the mouth mask
+/// is tinted to match so there is no visible seam between body and mask.
 pub fn spawn_face(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -63,6 +62,7 @@ pub fn spawn_face(
     ph: f32,
     score_tier: u8,
     seed: u32,
+    body_color: Color,
 ) -> BlockFace {
     let face_unit = ph.min(pw).min(100.0).max(12.0);
 
@@ -123,9 +123,9 @@ pub fn spawn_face(
 
     // Crescent mask: a fill-coloured circle that slides over the dark mouth to
     // leave only a bottom arc (smile) or top arc (frown) visible.
+    // Uses the actual body colour so there is no seam between block fill and mask.
     let mouth_mask = match score_tier {
-        2 => Some(sp(BLOCK_GREEN, 0.0, mouth_y, 0.02)),
-        0 => Some(sp(BLOCK_GREY,  0.0, mouth_y, 0.02)),
+        2 | 0 => Some(sp(body_color, 0.0, mouth_y, 0.02)),
         _ => None,
     };
 

@@ -7,31 +7,58 @@ use super::components::*;
 use super::faces;
 use super::resources::*;
 
-const BLOCK_GREEN:  (f32,f32,f32) = (0.38, 0.72, 0.45);
-const BLOCK_YELLOW: (f32,f32,f32) = (0.82, 0.70, 0.30);
-const BLOCK_GREY:   (f32,f32,f32) = (0.48, 0.46, 0.52);
-const BORDER_GREEN:  (f32,f32,f32) = (0.22, 0.43, 0.27);
-const BORDER_YELLOW: (f32,f32,f32) = (0.49, 0.42, 0.18);
-const BORDER_GREY:   (f32,f32,f32) = (0.29, 0.28, 0.31);
 const BORDER_PX: f32 = 3.0;
 
-/// Tiny deterministic hue/lightness nudge so each block has a slightly unique shade.
-/// `idx` is the block index; `range` is the max absolute offset per channel (e.g. 0.06).
-fn tinted(base: (f32, f32, f32), idx: usize, range: f32) -> Color {
-    // Simple LCG hash per channel
-    let h = |seed: u32| -> f32 {
-        let x = seed.wrapping_mul(1664525).wrapping_add(1013904223);
-        let x = x.wrapping_mul(22695477).wrapping_add(1);
-        ((x >> 8) & 0xFF_FFFF) as f32 / 0xFF_FFFFu32 as f32
+/// Deterministic LCG hash returning a value in [0, 1).
+fn lcg(seed: u32) -> f32 {
+    let x = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+    let x = x.wrapping_mul(22695477).wrapping_add(1);
+    ((x >> 8) & 0xFF_FFFF) as f32 / 0xFF_FFFFu32 as f32
+}
+
+/// Convert HSL (hue in degrees [0,360], saturation [0,1], lightness [0,1])
+/// to linear sRGB.
+fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (f32, f32, f32) {
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let h2 = h / 60.0;
+    let x = c * (1.0 - (h2 % 2.0 - 1.0).abs());
+    let (r1, g1, b1) = if h2 < 1.0 { (c, x, 0.0) }
+        else if h2 < 2.0 { (x, c, 0.0) }
+        else if h2 < 3.0 { (0.0, c, x) }
+        else if h2 < 4.0 { (0.0, x, c) }
+        else if h2 < 5.0 { (x, 0.0, c) }
+        else              { (c, 0.0, x) };
+    let m = l - c / 2.0;
+    (r1 + m, g1 + m, b1 + m)
+}
+
+/// Generate a unique fill colour for a block at `idx` within the tier's HSL palette.
+///
+/// Green tier:  hue 100–160°, saturation 45–75%, lightness 40–65%
+/// Yellow tier: hue  40– 65°, saturation 60–85%, lightness 45–65%
+/// Grey tier:   hue 220–260°, saturation  0–15%, lightness 35–60%
+fn block_fill_color(score_tier: u8, idx: usize) -> Color {
+    let s = idx as u32 * 3779 + score_tier as u32 * 997;
+    let t0 = lcg(s);
+    let t1 = lcg(s.wrapping_add(1));
+    let t2 = lcg(s.wrapping_add(2));
+    let (h, sat, l) = match score_tier {
+        2 => (100.0 + t0 * 60.0, 0.45 + t1 * 0.30, 0.40 + t2 * 0.25),
+        1 => ( 40.0 + t0 * 25.0, 0.60 + t1 * 0.25, 0.45 + t2 * 0.20),
+        _ => (220.0 + t0 * 40.0, 0.00 + t1 * 0.15, 0.35 + t2 * 0.25),
     };
-    let s = idx as u32 * 3779;
-    let dr = (h(s)     - 0.5) * 2.0 * range;
-    let dg = (h(s + 1) - 0.5) * 2.0 * range;
-    let db = (h(s + 2) - 0.5) * 2.0 * range;
+    let (r, g, b) = hsl_to_rgb(h, sat, l);
+    Color::srgb(r, g, b)
+}
+
+/// Derive a darker border colour from the fill colour by reducing lightness.
+fn block_border_color(fill: Color) -> Color {
+    let srgba = fill.to_srgba();
+    // Darken each channel by ~35%
     Color::srgb(
-        (base.0 + dr).clamp(0.0, 1.0),
-        (base.1 + dg).clamp(0.0, 1.0),
-        (base.2 + db).clamp(0.0, 1.0),
+        srgba.red   * 0.60,
+        srgba.green * 0.60,
+        srgba.blue  * 0.60,
     )
 }
 
@@ -147,20 +174,8 @@ pub fn production_input(
         let score = (pw / sw).min(sw / pw) * (ph / sh).min(sh / ph);
         let score_tier: u8 = if score >= 0.80 { 2 } else if score >= 0.60 { 1 } else { 0 };
         let idx = build_state.current_index;
-        let fill_color = if score_tier == 2 {
-            tinted(BLOCK_GREEN, idx, 0.06)
-        } else if score_tier == 1 {
-            tinted(BLOCK_YELLOW, idx, 0.06)
-        } else {
-            tinted(BLOCK_GREY, idx, 0.04)
-        };
-        let border_color = if score_tier == 2 {
-            tinted(BORDER_GREEN, idx, 0.04)
-        } else if score_tier == 1 {
-            tinted(BORDER_YELLOW, idx, 0.04)
-        } else {
-            tinted(BORDER_GREY, idx, 0.03)
-        };
+        let fill_color = block_fill_color(score_tier, idx);
+        let border_color = block_border_color(fill_color);
 
         let block_entity = commands.spawn((
             PlayingEntity,
@@ -190,11 +205,12 @@ pub fn production_input(
                 .with_scale(Vec3::new(pw - BORDER_PX * 2.0, ph - BORDER_PX * 2.0, 1.0)),
         ));
 
-        // Face
+        // Face — pass fill_color so the mouth mask matches the block body exactly.
         let face = faces::spawn_face(
             &mut commands, &mut meshes, &mut materials,
             block_entity, pw, ph, score_tier,
             build_state.current_index as u32,
+            fill_color,
         );
         commands.entity(block_entity).insert(face);
 
