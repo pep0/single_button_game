@@ -29,6 +29,17 @@ const FRAME_HW: f32 = 256.0; // half-width
 const FRAME_HH: f32 = 384.0; // half-height
 const FRAME_COLOR: Color = Color::srgba(0.9, 0.9, 0.9, 0.35);
 
+// Phone reference outlines
+// iPhone 17 Pro Max: 440 × 956
+const IPHONE17_HW: f32 = 220.0; // half-width
+const IPHONE17_HH: f32 = 478.0; // half-height
+const IPHONE17_COLOR: Color = Color::srgba(0.2, 0.8, 0.6, 0.30); // teal-green
+
+// iPhone 14: 390 × 844
+const IPHONE14_HW: f32 = 195.0; // half-width
+const IPHONE14_HH: f32 = 422.0; // half-height
+const IPHONE14_COLOR: Color = Color::srgba(0.9, 0.5, 0.2, 0.30); // amber
+
 fn snap(v: f32, grid: f32) -> f32 {
     (v / grid).round() * grid
 }
@@ -143,6 +154,65 @@ fn setup_canvas(
         TextFont { font_size: 11.0, ..default() },
         TextColor(FRAME_COLOR),
         Transform::from_xyz(-FRAME_HW + 4.0, FRAME_HH - 10.0, -0.1)));
+
+    // iPhone 17 Pro Max reference outline (440 × 956)
+    let phone17_mat = materials.add(ColorMaterial::from_color(IPHONE17_COLOR));
+    let thick = 2.0_f32;
+    // top edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(IPHONE17_HW * 2.0 + thick, thick))),
+        MeshMaterial2d(phone17_mat.clone()),
+        Transform::from_xyz(0.0,  IPHONE17_HH, -0.15)));
+    // bottom edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(IPHONE17_HW * 2.0 + thick, thick))),
+        MeshMaterial2d(phone17_mat.clone()),
+        Transform::from_xyz(0.0, -IPHONE17_HH, -0.15)));
+    // left edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(thick, IPHONE17_HH * 2.0))),
+        MeshMaterial2d(phone17_mat.clone()),
+        Transform::from_xyz(-IPHONE17_HW, 0.0, -0.15)));
+    // right edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(thick, IPHONE17_HH * 2.0))),
+        MeshMaterial2d(phone17_mat.clone()),
+        Transform::from_xyz( IPHONE17_HW, 0.0, -0.15)));
+    // label
+    commands.spawn((CanvasEntity,
+        Text2d::new("440 × 956"),
+        TextFont { font_size: 11.0, ..default() },
+        TextColor(IPHONE17_COLOR),
+        Transform::from_xyz(-IPHONE17_HW + 4.0, IPHONE17_HH - 10.0, -0.15)));
+
+    // iPhone 14 reference outline (390 × 844)
+    let phone14_mat = materials.add(ColorMaterial::from_color(IPHONE14_COLOR));
+    // top edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(IPHONE14_HW * 2.0 + thick, thick))),
+        MeshMaterial2d(phone14_mat.clone()),
+        Transform::from_xyz(0.0,  IPHONE14_HH, -0.15)));
+    // bottom edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(IPHONE14_HW * 2.0 + thick, thick))),
+        MeshMaterial2d(phone14_mat.clone()),
+        Transform::from_xyz(0.0, -IPHONE14_HH, -0.15)));
+    // left edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(thick, IPHONE14_HH * 2.0))),
+        MeshMaterial2d(phone14_mat.clone()),
+        Transform::from_xyz(-IPHONE14_HW, 0.0, -0.15)));
+    // right edge
+    commands.spawn((CanvasEntity,
+        Mesh2d(meshes.add(Rectangle::new(thick, IPHONE14_HH * 2.0))),
+        MeshMaterial2d(phone14_mat.clone()),
+        Transform::from_xyz( IPHONE14_HW, 0.0, -0.15)));
+    // label
+    commands.spawn((CanvasEntity,
+        Text2d::new("390 × 844"),
+        TextFont { font_size: 11.0, ..default() },
+        TextColor(IPHONE14_COLOR),
+        Transform::from_xyz(-IPHONE14_HW + 4.0, IPHONE14_HH - 10.0, -0.15)));
 
     // Header: app name (muted) + screen name (accent)
     commands.spawn((
